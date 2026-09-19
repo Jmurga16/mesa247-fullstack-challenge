@@ -70,6 +70,32 @@ class HostQueue(BaseModel):
     rows: list[HostRow]
 
 
+class HostReport(BaseModel):
+    location: HostLocation
+    service_date: date
+    joined: int
+    seated: int
+    left_before_seating: int
+    no_show: int
+    pending: int
+    expired: int
+    joined_guests: int
+    seated_guests: int
+    avg_wait_min: float | None
+    server_now: datetime
+
+
+class DemoLocation(BaseModel):
+    code: str
+    name: str
+    timezone: str
+
+
+class DemoTablet(BaseModel):
+    token: str
+    location_name: str
+
+
 class ErrorResponse(BaseModel):
     error: str
     message: str

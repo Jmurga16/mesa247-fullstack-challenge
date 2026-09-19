@@ -1,17 +1,17 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import HostContext, get_host
 from app.db import get_session
-from app.domain.queue import apply_transition, avg_wait_min, host_row
+from app.domain.queue import apply_transition, avg_wait_min, day_report, host_row
 from app.domain.time import now, service_date
 from app.errors import not_found
 from app.models import Ticket
 from app.notifier import Notifier, get_notifier, notify_called
-from app.schemas import HostQueue, HostRow
+from app.schemas import HostQueue, HostReport, HostRow
 
 router = APIRouter(prefix="/api/host", tags=["host"])
 
@@ -28,6 +28,14 @@ def queue(host: HostContext = Depends(get_host), session: Session = Depends(get_
                      service_date=day, waiting_count=sum(t.status == "waiting" for t in tickets),
                      avg_wait_min=avg_wait_min(session, location.id, day), server_now=instant,
                      rows=[host_row(session, t, location, instant) for t in tickets])
+
+
+@router.get("/report", response_model=HostReport)
+def report(day: date | None = Query(None, alias="date", description="Día de servicio; por defecto, el de hoy"),
+           host: HostContext = Depends(get_host), session: Session = Depends(get_session),
+           instant: datetime = Depends(now)):
+    location = host.location
+    return day_report(session, location, day or service_date(location, instant), instant)
 
 
 def action_endpoint(action):

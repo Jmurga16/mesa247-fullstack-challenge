@@ -10,7 +10,7 @@ from app.domain.phones import field_error, normalize_phone
 from app.domain.time import service_date
 from app.errors import ApiError, not_found
 from app.models import Location, Ticket, TicketEvent
-from app.schemas import HostRow, JoinRequest, TicketPublic
+from app.schemas import HostReport, HostRow, JoinRequest, TicketPublic
 
 TERMINAL = {"seated", "cancelled", "no_show", "removed", "expired"}
 # action: allowed sources, target, event
@@ -177,10 +177,42 @@ def host_row(session, ticket, location, instant):
                    notify_state=notification.removeprefix("notification_") if notification else "none")
 
 
+def mean_wait_min(pairs):
+    """Promedio de espera en minutos. None sin datos: "sin datos" y 0 no son lo mismo."""
+    return round(sum((seat - joined).total_seconds() / 60 for joined, seat in pairs) / len(pairs), 1) if pairs else None
+
+
 def avg_wait_min(session, location_id, day):
-    rows = session.execute(select(Ticket.joined_at, Ticket.seated_at).where(
-        Ticket.location_id == location_id, Ticket.service_date == day, Ticket.status == "seated")).all()
-    return round(sum((seat - joined).total_seconds() / 60 for joined, seat in rows) / len(rows), 1) if rows else None
+    return mean_wait_min(session.execute(select(Ticket.joined_at, Ticket.seated_at).where(
+        Ticket.location_id == location_id, Ticket.service_date == day, Ticket.status == "seated")).all())
+
+
+def day_report(session, location, day, instant):
+    """Reporte del día según 04 § 6, con los turnos del día en memoria.
+
+    Se calcula en Python y no en SQL: `TIMESTAMPDIFF` no existe en SQLite, y son
+    unas 200 filas por local y día. `removed` no cuenta: es un alta que no debió existir.
+    Un `expired` sin llamado cuenta como abandono y con llamado como "no vino" (09 § 2.7),
+    así que caducar un llamado vencido no cambia el significado del reporte.
+    """
+    rows = session.execute(select(Ticket.status, Ticket.called_at, Ticket.joined_at,
+                                  Ticket.seated_at, Ticket.party_size).where(
+        Ticket.location_id == location.id, Ticket.service_date == day,
+        Ticket.status != "removed")).all()
+    unresolved = {"cancelled", "expired"}
+    seated = [row for row in rows if row.status == "seated"]
+    pending = [row for row in rows if row.status in {"waiting", "called"}]
+    left = [row for row in rows if row.status in unresolved and row.called_at is None]
+    absent = [row for row in rows if row.status == "no_show"
+              or (row.status in unresolved and row.called_at is not None)]
+    return HostReport(
+        location={"name": location.name, "timezone": location.timezone}, service_date=day,
+        joined=len(rows), seated=len(seated), left_before_seating=len(left), no_show=len(absent),
+        pending=len(pending), expired=sum(row.status == "expired" for row in rows),
+        joined_guests=sum(row.party_size for row in rows),
+        seated_guests=sum(row.party_size for row in seated),
+        avg_wait_min=mean_wait_min([(row.joined_at, row.seated_at) for row in seated]),
+        server_now=instant)
 
 
 def get_location(session, code):
