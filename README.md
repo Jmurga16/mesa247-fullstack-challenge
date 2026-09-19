@@ -2,7 +2,11 @@
 
 Lista de espera digital para restaurantes. Este repositorio reúne el backend, el frontend y la documentación del proyecto.
 
-**Estado actual:** estructura inicial ejecutable del entregable 2. La API expone una comprobación de salud y la web muestra una página de bienvenida. Los flujos de la lista de espera todavía no están implementados.
+**Estado del backend:** API funcional de la lista de espera, SQLite por defecto y MySQL 8.4 con Docker Compose. Incluye seed y tests; instrucciones en el [README API](mesa247-api/README.md).
+
+**Estado del frontend:** las tres pantallas del corte —unirse desde el QR, la página del turno y la cola del anfitrión— contra esa API, con recuperación del turno por teléfono y estados de red. Instrucciones en el [README de la web](mesa247-web/README.md).
+
+Con ambos servidores arriba, los enlaces que imprime el seed del backend llevan al flujo completo: el comensal se une, ve su turno actualizarse solo, y el anfitrión lo llama y lo sienta desde la tablet. Si no tienes los enlaces a mano, <http://127.0.0.1:5173> lleva un selector con los tres locales del piloto que hace de QR; la tablet se abre en <http://127.0.0.1:5173/admin>.
 
 ## Estructura
 

@@ -15,13 +15,17 @@
     webhook_events (fase 2, idempotencia de Meta)   daily_reports (fase 2, 1 por local y fecha)
 
 En el corte de 4 horas bastan: locations, host_devices, tickets y ticket_events.
-DDL completo de referencia (MySQL 8): 04b_modelo_de_datos_mysql.sql
+DDL histórico de referencia (MySQL 8): 04b_modelo_de_datos_mysql.sql.
+Esquema ejecutable actual: `../../mesa247-api/app/models.py` (también SQLite); no instalar el SQL histórico.
 
 ## 2. Tablas y columnas clave
 locations
 - id, external_ref (id en El Libro), public_code (va en el QR), name, country_code (PE/CL/EC/CO),
   timezone (America/Lima, America/Santiago), day_cutoff_hour (5), minutes_per_party (respaldo del estimador),
-  call_grace_minutes (10), max_party_size (20), is_active.
+  call_grace_minutes (10), waiting_ttl_minutes (120), max_party_size (20), is_active.
+- `waiting_ttl_minutes` define cuánto puede seguir un turno `waiting` antes de que una nueva alta con el
+  mismo teléfono lo caduque. Un `called` usa `call_grace_minutes`. La caducidad, su evento y el turno
+  reemplazante se confirman en una sola transacción; si el alta nueva falla, el anterior sigue activo.
 
 host_devices
 - id, location_id, label ("Tablet puerta"), token_hash (sha256), last_seen_at, revoked_at.
@@ -73,14 +77,14 @@ daily_reports (fase 2): PK (location_id, service_date) → el cierre se puede re
 
 Sin esta regla escrita en un solo lugar, cada acción la implementa "casi igual" y algún cierre deja la
 clave activa ocupada: ese teléfono no puede volver a la cola y nadie entiende por qué. El test que la
-cubre (parametrizado sobre los cuatro estados) es el más valioso del repo.
+cubre (parametrizado sobre los cinco estados) es el más valioso del repo.
 
 **Idempotencia ≠ deduplicación**, y conviene no mezclarlas:
 - *Idempotencia* = `client_request_id`. Misma solicitud reenviada → mismo resultado, incluso si el turno
   ya terminó. Protege contra la señal mala.
 - *Deduplicación* = `active_key`. Regla de negocio: un turno activo por teléfono, local y día.
-  **No autentica a nadie**: conocer un teléfono no da derecho a ese turno, así que una solicitud distinta
-  con el mismo teléfono recibe 409 y **nunca el token** del turno existente.
+  Una solicitud distinta con el mismo teléfono recibe 409 sin token. La recuperación del token
+  se hace por `/lookup`, que acepta el teléfono como credencial según la enmienda 09 § 2.5.
 
 (Imagen del diagrama: 04c_diagrama_estados.png — generada antes de congelar la matriz; le falta la
 flecha `called → removed`. La fuente válida es el Mermaid de abajo y la matriz de `09_alcance_y_plan_de_implementacion.md` § 4.)
@@ -92,13 +96,14 @@ stateDiagram-v2
     waiting --> seated: Sentar (ya está en el mostrador)
     waiting --> cancelled: Ya no voy (comensal) / Se fue (anfitrión)
     waiting --> removed: Borrar (error o duplicado)
-    waiting --> expired: cierre del día
+    waiting --> expired: alta nueva después de waiting_ttl / cierre del día
     called --> called: Voy en camino (marca) / Re-llamar
     called --> waiting: Deshacer llamado (fase 2)
     called --> seated: Sentar
     called --> no_show: No vino / cierre del día
     called --> cancelled: Ya no voy (comensal)
     called --> removed: Borrar (error o duplicado)
+    called --> expired: alta nueva después de la tolerancia
     seated --> [*]
     cancelled --> [*]
     no_show --> [*]
@@ -115,6 +120,7 @@ stateDiagram-v2
 | waiting | Se fue | cancelled | anfitrión | igual, actor distinto. **Solo desde waiting** (ver nota) |
 | waiting | Borrar | removed | anfitrión | no cuenta en el reporte |
 | waiting | cierre del día | expired | sistema | cuenta como "se fue sin sentarse" — fase 2 |
+| waiting | alta nueva tras `waiting_ttl_minutes` | expired | sistema | evento `expired`, razón `stale_on_rejoin`; misma transacción que el reemplazo |
 | called | Voy en camino | called | comensal | on_the_way_at **solo si es NULL**; evento solo la 1.ª vez; siempre 200 |
 | called | Re-llamar | called | anfitrión | call_count+1, nuevo aviso (con límite) — fase 2 |
 | called | Deshacer llamado | waiting | anfitrión | solo por error y en ventana corta; el mensaje ya salió — fase 2 |
@@ -122,6 +128,7 @@ stateDiagram-v2
 | called | No vino | no_show | anfitrión | invariante |
 | called | Ya no voy | cancelled | comensal | cuenta como "no vino al ser llamado" |
 | called | Borrar | removed | anfitrión | el duplicado también puede haber sido llamado |
+| called | alta nueva tras `call_grace_minutes` | expired | sistema | evento con estado previo `called`; misma transacción que el reemplazo |
 | called | cierre del día | no_show | sistema | fase 2 |
 | cualquier final | cualquier acción | — | — | 409 (o 200 sin efectos si ya está en el destino) |
 
@@ -140,9 +147,9 @@ Dos anfitriones tocan "Llamar" al mismo tiempo: la base serializa los dos UPDATE
 status = 'waiting'. Un solo WhatsApp. (Verificado: el segundo UPDATE devuelve rowcount 0.)
 
 El caso más interesante no es ese, sino **"Llamar" y "Sentar" a la vez** sobre la
-misma fila: ambos filtran por status='waiting', uno gana, el otro relee y encuentra un estado que no
-es su destino → 409 → la tablet refresca y muestra "Otro anfitrión ya lo atendió". Sin el 409, el
-segundo anfitrión creería que su acción se aplicó.
+misma fila: si ambos leyeron waiting, ambos filtran por status='waiting', uno gana, el otro relee y encuentra un estado que no
+es su destino → 409 → la tablet refresca y muestra "Otro anfitrión ya lo atendió". Si la petición de sentar lee called después del commit del llamado, puede sentar: es una secuencia válida.
+La condición compara el estado observado, no todos los orígenes permitidos (09 § 2.6).
 
 Límite honesto de esta garantía: el UPDATE condicional asegura **una sola transición**, no **un solo
 envío**. Si el proceso muere entre el commit y el envío del aviso, el turno queda llamado sin aviso
@@ -168,7 +175,7 @@ tabla `notifications` de fase 2, y aun así es "al menos una vez", no "exactamen
 - "Tolerancia vencida" = status called y ahora > called_at + call_grace_minutes → la fila se pinta en rojo.
 
 ## 5. Fecha de servicio (service_date)
-- service_date = fecha local de (joined_at en la zona del local − 5 horas).
+- service_date = fecha local de (joined_at en la zona del local − day_cutoff_hour horas).
 - Ejemplos verificados:
   - Sábado 19/09 00:30 en Lima → servicio del viernes 18/09.
   - El mismo instante (sábado 08:30 UTC) es 03:30 en Lima → viernes 18/09, y 05:30 en Santiago → sábado 19/09.
@@ -177,8 +184,8 @@ tabla `notifications` de fase 2, y aun así es "al menos una vez", no "exactamen
 ## 6. Reporte del día (definiciones propuestas)
 - Se unieron = turnos del día excepto removed. (Es "altas válidas", no "todos los registros creados".)
 - Se sentaron = seated.
-- Se fueron sin sentarse = cancelled sin llamado (incluye "Se fue" marcado por el anfitrión) **+ expired**.
-- No vinieron al ser llamados = no_show + cancelled después de ser llamados.
+- Se fueron sin sentarse = cancelled o expired **sin** llamado (`called_at IS NULL`).
+- No vinieron al ser llamados = no_show + cancelled o expired **después** de ser llamados.
 - Espera media = promedio de (seated_at − joined_at) de los sentados. NULL si no hubo ninguno:
   "sin datos" y "0 minutos" no son lo mismo y no deben mostrarse igual.
 - Invariante después del cierre: se unieron = se sentaron + se fueron sin sentarse + no vinieron. (Test.)
@@ -200,8 +207,9 @@ SQL de referencia (MySQL; requiere que el día esté cerrado):
     SELECT
       COUNT(*)                                                                    AS se_unieron,
       SUM(status = 'seated')                                                      AS se_sentaron,
-      SUM(status = 'expired' OR (status = 'cancelled' AND called_at IS NULL))     AS se_fueron_sin_sentarse,
-      SUM(status = 'no_show' OR (status = 'cancelled' AND called_at IS NOT NULL)) AS no_vinieron_al_ser_llamados,
+      SUM(status IN ('expired','cancelled') AND called_at IS NULL)                AS se_fueron_sin_sentarse,
+      SUM(status = 'no_show' OR
+          (status IN ('expired','cancelled') AND called_at IS NOT NULL))          AS no_vinieron_al_ser_llamados,
       ROUND(AVG(CASE WHEN status = 'seated'
                      THEN TIMESTAMPDIFF(SECOND, joined_at, seated_at) END) / 60)  AS espera_media_min
     FROM tickets

@@ -18,12 +18,14 @@ CREATE TABLE locations (
   day_cutoff_hour     TINYINT UNSIGNED NOT NULL DEFAULT 5,   -- el día de servicio termina a las 05:00 local
   minutes_per_party   TINYINT UNSIGNED NOT NULL DEFAULT 4,   -- respaldo del estimador de espera
   call_grace_minutes  TINYINT UNSIGNED NOT NULL DEFAULT 10,  -- tolerancia después de llamar
+  waiting_ttl_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 120,-- espera máxima antes de permitir otra alta
   max_party_size      TINYINT UNSIGNED NOT NULL DEFAULT 20,
   is_active           BOOLEAN          NOT NULL DEFAULT TRUE,
   created_at          DATETIME(3)      NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   UNIQUE KEY uq_locations_public_code (public_code),
-  UNIQUE KEY uq_locations_external_ref (external_ref)
+  UNIQUE KEY uq_locations_external_ref (external_ref),
+  CONSTRAINT ck_locations_waiting_ttl CHECK (waiting_ttl_minutes > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE host_devices (
@@ -160,8 +162,9 @@ CREATE TABLE daily_reports (
 -- Reporte del día (con el día ya cerrado)
 -- SELECT COUNT(*) AS se_unieron,
 --        SUM(status = 'seated') AS se_sentaron,
---        SUM(status = 'expired' OR (status = 'cancelled' AND called_at IS NULL)) AS se_fueron_sin_sentarse,
---        SUM(status = 'no_show' OR (status = 'cancelled' AND called_at IS NOT NULL)) AS no_vinieron_al_ser_llamados,
+--        SUM(status IN ('expired','cancelled') AND called_at IS NULL) AS se_fueron_sin_sentarse,
+--        SUM(status = 'no_show' OR
+--            (status IN ('expired','cancelled') AND called_at IS NOT NULL)) AS no_vinieron_al_ser_llamados,
 --        ROUND(AVG(CASE WHEN status = 'seated' THEN TIMESTAMPDIFF(SECOND, joined_at, seated_at) END) / 60) AS espera_media_min
 --   FROM tickets
 --  WHERE location_id = ? AND service_date = ? AND status <> 'removed';

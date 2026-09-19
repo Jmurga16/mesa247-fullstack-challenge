@@ -5,8 +5,8 @@ Fecha de congelamiento: 16/09/2026.
 Los documentos 02–04 y 06 conservan el *porqué*; este conserva el *qué*, ya decidido.
 La disposición de cada hallazgo de la auditoría está en `../auditoria/02_resolucion_de_hallazgos.md`.
 
-Regla de uso: no se reabre una decisión de este archivo durante la implementación.
-Si aparece algo nuevo, se anota en "Deuda conocida" (§9) y se sigue.
+Regla de uso actualizada el 18/09/2026: si aparece una propuesta o cambia el plan, revisar y actualizar
+el contrato de API, este alcance y la estructura documentada (§ 2.6). La deuda diferida sigue en § 9.
 
 ---
 
@@ -53,7 +53,7 @@ Si no entran, van a la nota con su estimación. **No se empiezan si algo de §2.
 WhatsApp y SMS reales · webhook de Meta · outbox y Cloud Tasks · cierre del día automático ·
 reporte y correo · arrastrar para reordenar · cliente frecuente · re-llamar y deshacer llamado ·
 pausar la lista · panel de administración · login por persona · rate limiting · Alembic ·
-servir el build de React desde FastAPI · Docker · CI/CD · i18n · asignación de mesas.
+servir el build de React desde FastAPI · Docker de la API · CI/CD · i18n · asignación de mesas.
 
 Todo esto se cuenta en la nota con estimación y dependencia. Nada de esto vuelve a aparecer como
 requisito en un prompt ni en la definición de listo.
@@ -74,7 +74,7 @@ requisito en un prompt ni en la definición de listo.
 
 ### 2.5 Enmienda del 18/09/2026 — recuperar el turno con el teléfono
 
-Única decisión reabierta después del congelamiento, tomada **antes** de escribir código y al responder
+Primera decisión reabierta después del congelamiento, tomada **antes** de escribir código y al responder
 las tres preguntas al diseñador (07 § 3.1 P3). Queda aquí y no en "Deuda conocida" porque cambia el
 alcance obligatorio, no lo aplaza.
 
@@ -100,6 +100,75 @@ teléfono existe.
 
 ---
 
+## 2.6 Enmienda del 18/09/2026 — implementación de backend y MySQL local
+
+Solicitud del autor: implementar solo backend; añadir Docker para la base de datos y considerar MySQL
+por el futuro uso de Aiven, conservando la facilidad de arranque local. Toda propuesta nueva o cambio
+obliga a revisar contrato de API y estructura de carpetas documentada.
+
+- SQLite sigue predeterminado para ejecutar el reto con Python. Se incorpora **MySQL 8.4 mediante
+  `mesa247-api/compose.yaml`**, volumen y healthcheck. Docker de la BD deja de estar fuera del corte.
+- Se implementa el backend obligatorio, incluido remove y lookup. Frontend, alta manual y on-my-way
+  siguen pendientes de esta etapa. Los requisitos de pantallas O1/O4/O5/O9 se validan aquí solo vía API.
+- `/readyz` comprueba la BD; `/healthz` sigue comprobando el proceso. No se despliega Aiven ni la API.
+- Se precisa concurrencia: UPDATE compara el estado leído por la petición. Call y seat que leyeron
+  waiting compiten; uno gana y el otro devuelve 409. Si seat lee called después del llamado, sentar
+  es válido. No hay versión enviada desde la pantalla, así que no se detectan lecturas antiguas del cliente.
+- Se mantienen siete grupos de tests obligatorios y se añaden pruebas reales con dos conexiones,
+  tanto SQLite como MySQL local. No hace falta CI para ejecutar estas pruebas.
+- Contrato implementado: [../api/README.md](../api/README.md) y [../api/openapi.json](../api/openapi.json).
+  Estructura final: `03_arquitectura_y_decisiones.md` § 3 y README de la API.
+- El README se valida en un directorio limpio con entorno nuevo. Esto verifica el arranque de backend;
+  no equivale a completar todavía la definición fullstack de § 8.6.
+
+---
+
+## 2.7 Enmienda del 18/09/2026 — frontend, rutas y ventana de espera
+
+Solicitud del autor al revisar el frontend implementado. Cambia tres cosas de este documento, y por
+eso queda aquí y no en "Deuda conocida".
+
+| Antes decía | Ahora | Por qué |
+|---|---|---|
+| § 2.5: «la pantalla es un enlace y un campo dentro de `JoinPage` — no una ruta nueva» | **`/q/{code}/mi-turno`, pantalla propia** con retorno al registro | el panel desplegable dejaba poco sitio para explicar y para el caso de «ya estás en la lista»; el campo y el mensaje de error se siguen compartiendo |
+| `/` mostraba el código del local y hablaba del seed | **`/` es producto** («escanea el QR») más un atajo de prueba para elegir local; **`/admin` es solo la tablet** | la raíz la puede abrir un comensal: no puede hablarle de tokens ni de seeds. Y entrar a la lista **no es una acción de administración**: la hace el comensal al escanear, así que el atajo que la simula vive en `/`, no en el back office. `/admin` queda documentado en el README |
+| § 3: el teléfono queda bloqueado todo el `service_date` | **Ventana de espera**: un turno deja de bloquear el teléfono cuando vence | quien perdió su llamado a las 20:10 no podía volver a anotarse hasta el cierre, que es justo cuando querría volver a la cola |
+| 409 `already_in_queue` era el final del camino | **Aviso con dos salidas**: «ver mi turno» o «registrarme de nuevo» | el 409 seco no le dice a esa persona qué hacer |
+
+**El atajo de la prueba.** `/` lleva un selector con los tres locales del piloto —La Terraza Azul y
+Cuatro Vientos en Lima, Casa Mediterránea en Santiago— con las dos puertas que abre ese QR: unirse y
+volver al turno con el teléfono. La pantalla no manda a nadie a escanear otra vez: el QR está fijo en
+la puerta, y decirle a quien ya espera que vuelva allí es el problema que el producto resuelve. Existe porque en
+una demo no hay cámara ni papel pegado en la puerta, y porque lo que el piloto tiene que enseñar es
+cómo llega el comensal a la lista. Comprueba cada código contra la API: un local sin sembrar o cerrado
+sale como «no disponible» en vez de llevar a una pantalla muerta. Es lo único del frontend que asume
+qué hay en el seed, y vive en un archivo aparte (`lib/demo.ts`) para que se borre de una pieza.
+
+**La regla de la ventana, exacta.** Un turno deja de bloquear su teléfono cuando:
+
+- está `called` y pasó `called_at + call_grace_minutes` (los 10 minutos del llamado), o
+- está `waiting` y pasó `joined_at + waiting_ttl_minutes` (nuevo, por defecto 120).
+
+En ese caso el alta lo pasa a `expired` —con su evento y el invariante de § 3.1— y crea el turno nuevo.
+La caducidad, el evento `expired`, el turno nuevo y su evento `joined` forman **una sola transacción**:
+si cualquier parte falla, el turno anterior conserva su estado y su `active_key`.
+Mientras el turno sigue vivo, el 409 se mantiene: dos turnos activos con el mismo número siguen sin existir.
+
+- **`locations.waiting_ttl_minutes`** es columna nueva, con el mismo criterio que el resto de los
+  ajustes del local: no hay un 120 escrito en el código.
+- **`expire` ya se dispara desde `waiting` y desde `called`.** Sigue sin tener ruta HTTP: solo lo
+  provoca un alta nueva. El cierre del día automático sigue fuera (§ 9 punto 1).
+- **Métrica de `expired`:** sin `called_at` cuenta como «se fue sin sentarse»; con `called_at` cuenta
+  como «no vino al ser llamado». Así, caducar un llamado vencido no cambia el significado del reporte.
+- **«Registrarme de nuevo» no es atómico.** El front hace `lookup` → `cancel` → alta, porque no hay un
+  alta que reemplace en una sola llamada. Entre las dos llamadas el teléfono queda libre; si la segunda
+  falla, esa persona se quedó sin turno y tiene que volver a anotarse. La versión correcta es un
+  `replace` en el alta y queda anotada en § 9 punto 11.
+- **Lo que cuesta de verdad:** quien se registra de nuevo **pierde su puesto** y vuelve al final de la
+  cola. La pantalla lo dice antes de confirmar, no después.
+
+---
+
 ## 3. Modelo de datos — deltas sobre `04_modelo_de_datos.md`
 
 Cuatro tablas: `locations`, `host_devices`, `tickets`, `ticket_events`. Sin cambios de estructura salvo:
@@ -111,6 +180,8 @@ Cuatro tablas: `locations`, `host_devices`, `tickets`, `ticket_events`. Sin camb
 - **Desempate de orden**: en todas partes se ordena y se cuenta por **`(sort_key, id)`**, nunca por `sort_key` solo.
   Dos altas pueden caer en el mismo milisegundo (y con reloj congelado en los tests, caen siempre).
 - **`day_cutoff_hour` se lee de la fila del local.** No hay un `5` escrito en el código.
+- **`waiting_ttl_minutes`** (por defecto 120) define, junto con `call_grace_minutes`, cuándo un turno
+  deja de bloquear su teléfono y el alta lo caduca. Ver § 2.7.
 - **Tamaño de grupo**: `CHECK (party_size BETWEEN 1 AND 50)` es el techo absoluto del dato;
   `locations.max_party_size` (por defecto 20) es el límite de negocio que valida Pydantic. Son dos cosas distintas.
 - **`public_token` y `token_hash` con colación binaria** en MySQL (`utf8mb4_bin`): son credenciales opacas,
@@ -146,10 +217,11 @@ Un test parametrizado cubre los cinco estados. Es el test más importante del re
 Reglas transversales:
 - Cualquier otro origen → **409** con `{"error":"invalid_transition"}`.
 - Turno de otro local, o token/id inexistente → **404**, nunca 403: no se revela que existe.
-- Toda transición es `UPDATE … WHERE id=:id AND location_id=:loc AND status IN (:origenes)`.
+- Toda transición es `UPDATE … WHERE id=:id AND location_id=:loc AND status=:estado_observado`.
   `rowcount = 1` → gané. `rowcount = 0` → releo: ¿ya está en el destino? 200 sin efectos. ¿Otro? 409.
-- **`Llamar` y `Sentar` simultáneos sobre el mismo turno `waiting`**: uno gana, el otro relee, ve un
-  estado que no es el suyo ni su destino → 409 → la tablet refresca y muestra "Otro anfitrión ya lo atendió".
+- **`Llamar` y `Sentar` que leyeron simultáneamente el mismo turno `waiting`**: uno gana, el otro relee, ve un
+  estado distinto del observado y del destino → 409 → la tablet refresca y muestra "Otro anfitrión ya lo atendió".
+  Si Sentar lee called después del commit de Llamar, puede sentar (§ 2.6).
 - El evento `notification_sent` / `notification_failed` se escribe **después** del commit de la transición,
   en su propia transacción. No bloquea ni revierte el llamado.
 
@@ -158,7 +230,9 @@ Reglas transversales:
 
 ---
 
-## 5. Contrato de API congelado
+## 5. Contrato de API vigente
+
+Esquema exacto implementado: [OpenAPI](../api/openapi.json). Precisiones de esta etapa: [contrato](../api/README.md).
 
 Errores siempre: `{"error": "<slug>", "message": "<texto en español, para mostrar tal cual>"}`.
 Sin trazas. 422 lo genera Pydantic y el front lo traduce a un mensaje por campo.
@@ -202,7 +276,7 @@ TicketPublic = {
   "party_size":    4,
   "status":        "waiting|called|seated|cancelled|no_show|removed|expired",
   "groups_ahead":  6,                # null si no esta en waiting
-  "eta_min":       28,               # null si no esta en waiting
+  "eta_min":       30,               # null si no esta en waiting
   "joined_at":     "2026-09-18T21:00:00Z",
   "called_at":     null,
   "deadline_at":   null,             # called_at + call_grace_minutes, solo si status = called
@@ -244,7 +318,7 @@ POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
   Los `called` **no** cuentan: ya no están delante. (En la tablet sí se ven, en su posición de llegada.)
 - `eta_min` = `max(5, ceil_a_5((groups_ahead + 1) × location.minutes_per_party))`, con `minutes_per_party = 4`.
   **Es una heurística sin calibrar.** Se guarda `quoted_wait_min` y `position_at_join` para comparar
-  después contra `seated_at − joined_at`. En pantalla se muestra como "≈ 28 min" con la frase
+  después contra `seated_at − joined_at`. En pantalla se muestra como "≈ 30 min" con la frase
   "es aproximado: depende de las mesas que se vayan liberando".
 - `avg_wait_min` = promedio de `seated_at − joined_at` de los sentados de hoy, calculado **en Python**
   (`TIMESTAMPDIFF` no existe en SQLite). `null` si no hay ninguno.
@@ -258,7 +332,7 @@ POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
 | Tema | Decisión | Una línea de defensa |
 |---|---|---|
 | Backend | FastAPI + SQLAlchemy 2 **síncrono** + Pydantic v2 | la carga es baja; FastAPI corre los `def` en threadpool; el código se lee sin `async` |
-| BD local | SQLite archivo, con `journal_mode=WAL`, `busy_timeout=5000`, `check_same_thread=False` | sin WAL, dos tablets escribiendo dan "database is locked" en la demo |
+| BD local | SQLite predeterminado; alternativa MySQL 8.4 con Compose. SQLite archivo, con `journal_mode=WAL`, `busy_timeout=5000`, `check_same_thread=False` | sin WAL, dos tablets escribiendo dan "database is locked" en la demo |
 | Migraciones | `create_all()` en local. **Sin Alembic.** | en producción va como Cloud Run Job antes de mover tráfico; en 4 h no compra nada |
 | Frontend | Vite + React + TypeScript + `react-router-dom`. Nada más. | tres rutas; cualquier otra dependencia hay que saber defenderla |
 | Datos del servidor | **hook propio `usePolling` (~40 líneas)** | tres pantallas no pagan una dependencia de datos con su propia API que mantener |
@@ -287,6 +361,8 @@ POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
 El test 1 conserva su segundo caso (mismo teléfono y otro `request_id` al unirse → 409 **sin** token):
 sigue siendo la respuesta correcta del alta. Lo que cambió con la enmienda § 2.5 es su *razón*: ya no
 protege el turno —para eso ahora está `/lookup`—, evita el duplicado y empuja a la pantalla correcta.
+La enmienda § 2.7 añade al mismo grupo las pruebas de vigencia, reemplazo tras vencer y rollback completo
+si falla el alta nueva. Con dos reemplazos simultáneos, uno crea el turno y el otro recibe 409.
 
 ### 7.2 Si alcanza (baratos, en este orden)
 
@@ -299,9 +375,9 @@ protege el turno —para eso ahora está `/lookup`—, evita el duplicado y empu
 Herramientas: `pytest` + `TestClient`, SQLite temporal por test, notificador fake inyectado con
 `dependency_overrides`, **reloj inyectable** (`now()` como dependencia).
 
-Límite declarado, que también va en la nota: **el test 2 no prueba concurrencia real.**
-Prueba la condición del `UPDATE` de forma secuencial. La versión con dos conexiones simultáneas corre
-contra MySQL en CI, no contra SQLite.
+Validación actualizada (§ 2.6): el test 2 sigue probando el doble llamado secuencial.
+`tests/test_concurrency.py` añade dos conexiones simultáneas para doble llamado, call contra seat
+y alta con el mismo request_id. La suite corre en SQLite y con `scripts/test_mysql.py` en MySQL local.
 
 No se testea: que la página renderiza, CRUD triviales, getters, snapshots, porcentaje de cobertura.
 
@@ -393,13 +469,14 @@ Nada más. Lo que falte va a la nota con su estimación.
    y por teléfono, y «Borrar» en la tablet.
 4. **No se puede cambiar el tamaño de un grupo.** Llegan 4, resultan 6 → hoy es borrar y volver a agregar.
    Va a pasar en el piloto la primera semana.
-5. **Un teléfono = un turno por local y día.** Quien reserva para dos familias con el mismo número no puede.
+5. **Un teléfono = un turno activo a la vez.** Quien reserva para dos familias con el mismo número no
+   puede hacerlo a la vez; desde § 2.7 el bloqueo dura lo que dura la espera, no todo el día.
    Lo cubre el alta manual sin teléfono.
 6. **Consentimiento por acción, no por casilla.** Decisión tomada para no sumar fricción en la puerta;
    hay que validarla con legal antes del piloto (Perú pide consentimiento "expreso").
 7. **Sin atribución por persona**: se sabe qué tablet actuó, no quién la tocaba.
 8. **SQLite ≠ MySQL.** Colación, `TIMESTAMPDIFF`, bloqueo de escritura y zona horaria difieren.
-   Antes del piloto, correr los tests contra MySQL.
+   La suite ya se ejecuta también en MySQL local; antes del piloto validar el servicio remoto y TLS.
 9. **El token de la tablet viaja en la URL del seed.** Cómodo en local, inaceptable en producción
    (Cloud Run registra la query string): en el piloto va por emparejamiento, no por link fijo.
 10. **`/lookup` sin OTP: el teléfono es la credencial.** Decisión consciente de la enmienda § 2.5, no un
@@ -407,3 +484,9 @@ Nada más. Lo que falte va a la nota con su estimación.
     Antes del piloto: código de verificación por WhatsApp o SMS (~0,5 d sobre el canal real, que son
     3 d y 1 d en 05 § 2) y, mientras tanto, límite por IP y por teléfono en ese endpoint — que hoy
     tampoco existe (punto 3).
+11. **«Registrarme de nuevo» son dos llamadas, no una.** El front cancela el turno anterior y crea el
+    nuevo; entre las dos el teléfono queda libre y un fallo deja a esa persona sin turno. La versión
+    correcta es un `replace` en el alta, que cancela y crea en la misma transacción (≈ 0,2 d).
+12. **La ventana de espera no cierra turnos por sí sola.** Un turno vencido solo caduca si esa misma
+    persona vuelve a anotarse; si no, sigue abierto hasta el cierre del día, que tampoco existe
+    (punto 1). Para el reporte, ambos son el mismo agujero.

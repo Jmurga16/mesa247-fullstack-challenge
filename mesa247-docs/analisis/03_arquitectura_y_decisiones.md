@@ -40,29 +40,36 @@ Diferencias deliberadas con producción, que hay que saber nombrar:
 - **Sin Alembic**: `create_all()` al arrancar. En producción, Alembic como Cloud Run Job antes de mover
   tráfico (nunca al arrancar la app: varias instancias migrando a la vez).
 
-## 3. Estructura de repo propuesta (pequeña a propósito)
+## 3. Estructura de repo implementada — backend, 18/09/2026
 
-    mesa247-lista-espera/
-    ├── README.md                  ← levantar en 5 min (bash y PowerShell)
-    ├── backend/
-    │   ├── app/
-    │   │   ├── main.py            ← crea la app, incluye routers, /healthz
-    │   │   ├── config.py          ← pydantic-settings (.env)
-    │   │   ├── db.py              ← engine + sesión
-    │   │   ├── models.py          ← Location, HostDevice, Ticket, TicketEvent
-    │   │   ├── schemas.py         ← Pydantic de entrada/salida
-    │   │   ├── queue.py           ← dominio: transiciones, grupos delante, ETA, service_date
-    │   │   ├── notifier.py        ← interfaz + FakeNotifier
-    │   │   ├── auth.py            ← dependencia: token de dispositivo → local
-    │   │   └── routers/ public.py · host.py
-    │   ├── seed.py
-    │   ├── tests/ conftest.py · test_join.py · test_transitions.py · test_isolation.py
-    │   └── requirements.txt (versiones fijas) · .env.example
-    │                              (sin alembic/: create_all en local, se explica en la nota)
-    └── frontend/
-        ├── src/ api.ts · usePolling.ts · pages/JoinPage.tsx · pages/TicketPage.tsx · pages/HostPage.tsx
-        ├── vite.config.ts (proxy /api → :8000)
-        └── package.json
+```text
+Mesa247/
+├── README.md
+├── mesa247-api/
+│   ├── app/
+│   │   ├── main.py · config.py · db.py · models.py · schemas.py
+│   │   ├── auth.py · notifier.py · errors.py
+│   │   ├── domain/ time.py · phones.py · queue.py
+│   │   └── routers/ public.py · host.py
+│   ├── scripts/ export_openapi.py · test_mysql.py
+│   ├── tests/ conftest.py · test_join.py · test_transitions.py
+│   │          test_isolation_lookup.py · test_queue_time.py · test_concurrency.py
+│   │          test_seed_health_contract.py
+│   ├── seed.py · compose.yaml
+│   └── README.md · requirements.txt · requirements-dev.txt · .env.example
+├── mesa247-web/                 Frontend en una sesión separada
+└── mesa247-docs/
+    ├── api/ README.md · openapi.json
+    ├── analisis/
+    ├── auditoria/
+    ├── entregables/
+    └── conversaciones/
+```
+
+SQLite es predeterminado. `compose.yaml` añade MySQL 8.4 local; ambos usan los mismos modelos y suite.
+MySQL remoto permite `DATABASE_SSL_CA`. No se añade Docker de API ni Alembic.
+Los detalles ejecutables están en [README API](../../mesa247-api/README.md).
+Cualquier cambio de alcance exige revisar este árbol, 09 y el [contrato implementado](../api/README.md).
 
 ## 4. Contrato de API v1
 Las formas exactas de petición y respuesta están congeladas en `09_alcance_y_plan_de_implementacion.md` § 5.
@@ -72,6 +79,7 @@ Aquí va el mapa y el porqué de cada regla.
 |---|---|---|---|---|
 | GET | /api/public/locations/{code} | comensal | nombre del local, país, límites | 404 si no existe o está inactivo |
 | POST | /api/public/locations/{code}/tickets | comensal | unirse | body lleva `request_id` (uuid del navegador). 201 nuevo · 200 mismo `request_id` (reintento) · **409 sin token** si ese teléfono ya tiene turno activo |
+| POST | /api/public/locations/{code}/lookup | comensal | recuperar turno activo del día con teléfono | devuelve token según 09 § 2.5 |
 | GET | /api/public/tickets/{token} | comensal | estado, grupos delante, ETA, hora límite si fue llamado | sin teléfono ni datos de otros |
 | POST | /api/public/tickets/{token}/cancel | comensal | «Ya no voy» | desde waiting o called; desde seated → 409 |
 | POST | /api/public/tickets/{token}/on-my-way | comensal | «Voy en camino» | solo si está llamado; marca la hora solo la 1.ª vez — **opcional** |
@@ -93,13 +101,9 @@ Reglas HTTP:
 - 200 sin efectos si ya está en el estado destino (reintento o doble toque).
 - 404, no 403, para tokens o ids de otro local: no revelar que existen.
 - 422 para validación. Mensajes de error en español, sin trazas.
-- **El alta pública nunca devuelve el token de un turno que ya existe.** Conocer un teléfono no acredita
-  posesión: si lo devolviera, cualquiera que sepa el teléfono de Carla y vea el QR de la puerta —que es
-  público, está pegado ahí— podría pedir su turno y cancelarlo. Por eso se separan dos cosas que es fácil
-  confundir: **idempotencia** (`request_id`: la misma solicitud reenviada devuelve el mismo resultado, y
-  eso sí protege contra la señal mala) y **deduplicación** (`active_key`: una regla de negocio, un turno
-  activo por teléfono, local y día). La recuperación desde otro dispositivo la resuelve el anfitrión en
-  la tablet; meter un OTP aquí sería añadir el login que mató a la lista de El Libro.
+- Repetir request_id devuelve el mismo turno; otro UUID con teléfono activo devuelve 409 sin token.
+  La recuperación por teléfono la implementa `/lookup`, que devuelve el token del turno activo del día
+  según la enmienda 09 § 2.5. OTP sigue diferido.
 - Endpoints de acción (POST /call) en vez de PATCH {status}: cada transición tiene reglas y permisos propios,
   se lee clara en logs y es más difícil de usar mal.
 
@@ -155,6 +159,8 @@ D6. Máquina de estados explícita con transiciones atómicas
 - Por qué: dos anfitriones a la vez; funciona igual en SQLite (local) y MySQL (prod) sin SELECT … FOR UPDATE
   (que SQLite no soporta); evita WhatsApp duplicados.
 - Sin librería de máquina de estados: un diccionario de transiciones permitidas basta.
+- La reposición de un turno vencido también es atómica: `expired`, su evento, el turno nuevo y `joined`
+  comparten commit. Si crear el reemplazo falla, el turno anterior conserva estado y `active_key`.
 
 D7. Bitácora de eventos (ticket_events) además del estado actual
 - De ahí salen el reporte, la auditoría ("¿quién llamó a Carla?"), la calibración del estimador y las disputas.
@@ -191,7 +197,8 @@ D13. Notificador como interfaz con adaptadores
 - notify_table_ready(ticket). Adaptadores: Fake (local y tests), WhatsApp Cloud API, SMS.
 - Producción: patrón outbox (fila en notifications dentro de la misma transacción del llamado) + Cloud Tasks
   (reintentos idempotentes por id de notificación).
-- Prototipo: BackgroundTasks de FastAPI + Fake.
+- Backend implementado: Fake síncrono después del commit del llamado, en la misma petición;
+  el evento de aviso tiene su propia transacción. BackgroundTasks no es necesario para un log local.
 - Si el envío falla: el turno sigue "llamado", se registra notification_failed y la tablet muestra "aviso no
   entregado" para que el anfitrión llame por voz. El estado del negocio no depende de que Meta responda.
 - **Lo que esto NO garantiza** (decirlo antes de que lo pregunten): el UPDATE condicional asegura una sola

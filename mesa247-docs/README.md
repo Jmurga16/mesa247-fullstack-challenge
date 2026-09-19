@@ -21,6 +21,7 @@ Mesa247/
     ├── entrega_y_uso_de_ia.md   Restricciones, entregables y declaración del uso de IA
     ├── entregables/     Los documentos que se envían (empezando por la nota técnica)
     ├── analisis/        Contexto, documentos 01–09, SQL y diagrama
+    ├── api/           Contrato implementado y OpenAPI generado
     ├── auditoria/       Informe, resolución y resumen final
     └── conversaciones/ Registro de prompts, decisiones y exportaciones
 ```
@@ -35,3 +36,5 @@ Mesa247/
 Los antiguos prompts A/B/C que menciona la auditoría no estaban presentes al reorganizar los archivos. Sus menciones se conservan como referencias históricas, sin enlaces a archivos inexistentes.
 
 Se conservaron los documentos originales, con nombres y rutas actualizados. El contexto inicial y el resumen final tienen contenido parcialmente repetido y se mantienen para preservar el registro de trabajo. Esta reorganización no es una nueva auditoría técnica.
+
+- [Contrato de API implementado](api/README.md): rutas, reglas y esquema OpenAPI; backend con SQLite y MySQL local.

@@ -117,8 +117,8 @@ esté mirando.
 
 ## Límites, dichos antes de que los pregunten
 
-El test de doble llamado prueba la condición del UPDATE en secuencial, no concurrencia real: esa versión
-corre contra MySQL en CI. El tiempo estimado es una heurística sin calibrar, y se guarda la promesa de cada
+El doble llamado se prueba en secuencial y con dos conexiones simultáneas; la suite corre en SQLite
+y MySQL 8.4 local mediante Docker. No se ha validado aún Aiven remoto. El tiempo estimado es una heurística sin calibrar, y se guarda la promesa de cada
 alta para medir el error desde el día 1. El notificador falso no prueba entrega. El cierre del día no está
 implementado: la cola filtra por día de servicio, así que lo de ayer no ensucia hoy, pero el turno queda
 abierto.
