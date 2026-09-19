@@ -26,6 +26,13 @@ dist/
 *.log
 .artifacts/
 
+# Despliegue propio del VPS: es de quien lo levanta, no parte de la entrega.
+# Los certificados de su MySQL tampoco: DATABASE_SSL_CA apunta a un archivo local.
+mesa247-api/deploy/
+mesa247-api/certs/
+*.pem
+*.key
+
 # Sistema operativo
 .DS_Store
 Thumbs.db
