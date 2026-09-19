@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ConnectionBanner from '../components/ConnectionBanner'
+import ErrorBanner from '../components/ErrorBanner'
+import NoHostSession from '../components/NoHostSession'
 import { usePolling } from '../hooks/usePolling'
 import { api } from '../lib/api'
 import { longDateOf, waitLabel } from '../lib/format'
@@ -46,15 +48,9 @@ export default function ReportPage() {
   // número de hooks ejecutados y React tumbaba la pantalla.
   if (!token || polling.error?.status === 401) {
     return (
-      <main className="screen screen-wide">
-        <section className="card">
-          <h1>Esta tablet no tiene sesión</h1>
-          <p>El reporte es del local de la tablet, así que necesita su sesión abierta.</p>
-          <Link className="button button-primary" to="/admin">
-            Abrir la tablet de un local
-          </Link>
-        </section>
-      </main>
+      <NoHostSession>
+        <p>El reporte es del local de la tablet, así que necesita su sesión abierta.</p>
+      </NoHostSession>
     )
   }
 
@@ -93,14 +89,7 @@ export default function ReportPage() {
       </header>
 
       <ConnectionBanner offline={polling.offline} />
-      {polling.error && (
-        <p className="banner banner-warn" role="alert">
-          {polling.error.message}{' '}
-          <button type="button" className="link" onClick={polling.refresh}>
-            Reintentar
-          </button>
-        </p>
-      )}
+      <ErrorBanner error={polling.error} onRetry={polling.refresh} />
 
       <label className="report-day">
         <span className="label">Día de servicio</span>

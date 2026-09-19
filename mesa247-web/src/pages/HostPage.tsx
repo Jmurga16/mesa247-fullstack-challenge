@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ConnectionBanner from '../components/ConnectionBanner'
+import ErrorBanner from '../components/ErrorBanner'
+import NoHostSession from '../components/NoHostSession'
 import { usePolling } from '../hooks/usePolling'
 import { ApiError, OfflineError, api } from '../lib/api'
 import { clockTime, partyLabel, waitLabel, weekdayOf } from '../lib/format'
@@ -65,24 +67,13 @@ export default function HostPage() {
 
   if (!token || polling.error?.status === 401) {
     return (
-      <main className="screen screen-wide">
-        <section className="card">
-          <h1>Esta tablet no tiene sesión</h1>
-          <p>
-            Abre el enlace del local que imprime el seed
-            (<code>/host?token=…</code>). El token queda guardado en esta tablet y se limpia de la
-            barra de direcciones.
-          </p>
-          <Link className="button button-primary" to="/admin">
-            Abrir la tablet de un local
-          </Link>
-          {token && (
-            <button type="button" className="button button-secondary" onClick={forgetDevice}>
-              Olvidar el token guardado
-            </button>
-          )}
-        </section>
-      </main>
+      <NoHostSession onForget={token ? forgetDevice : undefined}>
+        <p>
+          Abre el enlace del local que imprime el seed
+          (<code>/host?token=…</code>). El token queda guardado en esta tablet y se limpia de la
+          barra de direcciones.
+        </p>
+      </NoHostSession>
     )
   }
 
@@ -120,14 +111,7 @@ export default function HostPage() {
 
       <ConnectionBanner offline={polling.offline} />
       {notice && <p className="banner banner-warn" role="alert">{notice}</p>}
-      {polling.error && (
-        <p className="banner banner-warn" role="alert">
-          {polling.error.message}{' '}
-          <button type="button" className="link" onClick={polling.refresh}>
-            Reintentar
-          </button>
-        </p>
-      )}
+      <ErrorBanner error={polling.error} onRetry={polling.refresh} />
 
       {queue && queue.rows.length === 0 && (
         <p className="empty">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ConnectionBanner from '../components/ConnectionBanner'
+import ErrorBanner from '../components/ErrorBanner'
 import { usePolling } from '../hooks/usePolling'
 import { ApiError, OfflineError, api } from '../lib/api'
 import { aheadLabel, clockSkewMs, clockTime, minutesLeft, partyLabel } from '../lib/format'
@@ -172,9 +173,7 @@ export default function TicketPage() {
         </header>
 
         <ConnectionBanner offline={polling.offline} />
-        {polling.error && (
-          <p className="banner banner-warn" role="alert">{polling.error.message}</p>
-        )}
+        <ErrorBanner error={polling.error} />
 
         {ticket.status === 'waiting' && (
           <>
