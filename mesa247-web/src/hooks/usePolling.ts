@@ -20,9 +20,18 @@ export type Polling<T> = {
 const MAX_BACKOFF_MS = 60_000
 
 /**
+ * Un corte no es una respuesta: que el servicio no esté es tan transitorio como
+ * quedarse sin red, y repetir la consulta es lo que corresponde. Un 401 o un 404
+ * sí son una respuesta del servidor y no cambian por insistir.
+ */
+function isTransient(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429
+}
+
+/**
  * Consulta periódica con lo que pide el corte (09 § 6) y nada más:
  * pausa con la pestaña oculta, refresco al volver, backoff hasta 60 s y, ante
- * un corte de red, conserva el último dato en lugar de mostrar un error.
+ * un corte de red o del servicio, conserva el último dato en lugar de mostrar un error.
  */
 export function usePolling<T>(
   fetcher: (signal: AbortSignal) => Promise<T>,
@@ -69,11 +78,13 @@ export function usePolling<T>(
       } catch (cause) {
         if (stopped || controller.signal.aborted) return
         setLoading(false)
-        if (cause instanceof ApiError) {
+        if (cause instanceof ApiError && !isTransient(cause.status)) {
           // Un 404 o un 401 no se arreglan repitiendo: el ciclo se detiene.
           setError(cause)
+          setOffline(false)
           return
         }
+        // El resto —sin red, o la API caída detrás del proxy— se reintenta con backoff.
         failures += 1
         setOffline(true)
       } finally {
