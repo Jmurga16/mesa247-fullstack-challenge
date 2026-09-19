@@ -17,16 +17,18 @@ No incluye preparación de la entrevista ni el guion del correo: eso no es mater
 
 ## 2. Qué se entrega
 
-**Nota técnica (1–2 páginas).** Seis puntos, todos desarrollados en esta carpeta:
+**Nota técnica (1–2 páginas).** Escrita, en [`entregables/01_nota_tecnica.md`](entregables/01_nota_tecnica.md):
+ese es el documento que se envía. La tabla dice de dónde sale cada sección y dónde está el desarrollo largo
+que **no** entra en las dos páginas.
 
 | Sección | Líneas | Dónde está el material |
 |---|---|---|
-| Las 3 preguntas al diseñador + supuesto de cada una | ~12 | [07 § 3](analisis/07_disenador_preguntas_y_devolucion.md) |
+| Las 3 preguntas al diseñador + supuesto de cada una | ~12 | [07 § 3.1](analisis/07_disenador_preguntas_y_devolucion.md) (las que se envían; § 3 son las candidatas del análisis) |
 | Qué se construye y qué se corta, con estimación | ~18 | [05 § 2](analisis/05_alcance_estimaciones_y_orden.md) · [09 § 2](analisis/09_alcance_y_plan_de_implementacion.md) |
 | Modelo de datos (4 tablas y los estados, sin DDL) | ~12 | [04](analisis/04_modelo_de_datos.md) |
-| Qué se le devuelve al diseñador y cómo | ~10 | [07 § 4](analisis/07_disenador_preguntas_y_devolucion.md) |
-| Lo difícil de deshacer, en tres niveles | ~8 | [03 § 6](analisis/03_arquitectura_y_decisiones.md) |
-| Producción: despliegue, 4 alarmas, viernes 9 pm | ~15 | [06 § 1, § 3 y § 4](analisis/06_produccion_y_tests.md) |
+| Qué se le devuelve al diseñador y cómo | ~10 | [07 § 4.1](analisis/07_disenador_preguntas_y_devolucion.md) (las dos prioridades; § 4 es el inventario completo) |
+| Lo difícil de deshacer (cinco decisiones) | ~8 | [03 § 6.1](analisis/03_arquitectura_y_decisiones.md) (las cinco de la nota; § 6 es el catálogo por niveles) |
+| Producción: despliegue, 4 alarmas, viernes 9 pm | ~15 | [06 § 0](analisis/06_produccion_y_tests.md) (la respuesta corta; el detalle en § 1, § 3 y § 4) |
 | **Total** | **~75** | |
 
 El presupuesto de líneas importa: este material da para diez páginas y la nota son dos. Todo lo que

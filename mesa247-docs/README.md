@@ -19,11 +19,13 @@ Mesa247/
 └── mesa247-docs/
     ├── README.md
     ├── entrega_y_uso_de_ia.md   Restricciones, entregables y declaración del uso de IA
+    ├── entregables/     Los documentos que se envían (empezando por la nota técnica)
     ├── analisis/        Contexto, documentos 01–09, SQL y diagrama
     ├── auditoria/       Informe, resolución y resumen final
     └── conversaciones/ Registro de prompts, decisiones y exportaciones
 ```
 
+- [Nota técnica](entregables/01_nota_tecnica.md): el entregable 1, escrito. El análisis que lo sostiene está en `analisis/`.
 - [Auditoría](auditoria/README.md): revisión y resolución de hallazgos.
 - [Conversaciones](conversaciones/README.md): explica cómo se registran los prompts, las decisiones y las conversaciones.
 - [Registro](conversaciones/registro.md): historial cronológico del trabajo asistido por IA.
