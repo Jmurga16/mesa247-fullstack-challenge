@@ -155,6 +155,13 @@ encendido por defecto para que el clon limpio funcione y apagado en cualquier de
 esas rutas responden 404 y la tablet vuelve a abrirse solo con su enlace. No es el panel de
 administración de § 2.3 —no administra nada— ni el emparejamiento de producción, que sigue fuera.
 
+**El conmutador de papel.** Los dos atajos anteriores resuelven cómo se entra; este, cómo se vuelve.
+En la puerta nadie cambia de papel —el comensal trae su celular y el anfitrión su tablet—, pero quien
+prueba la aplicación tiene una sola pantalla y las dos mitades que enseñar. Un conmutador fijo en la
+parte superior lleva de «Comensal» a «Anfitrión» y al revés; el lado del anfitrión entra directo a su
+cola si esa pantalla ya abrió una tablet, y a elegir local si todavía no. Sale de la misma consulta que
+el resto del andamiaje (`GET /api/demo/locations`), así que con `DEMO_MODE=false` no se dibuja.
+
 **La regla de la ventana, exacta.** Un turno deja de bloquear su teléfono cuando:
 
 - está `called` y pasó `called_at + call_grace_minutes` (los 10 minutos del llamado), o
@@ -209,6 +216,45 @@ están en pantalla, no solo en la nota:
 tablet y se actualiza cada 30 s; `removed` sigue sin contar; y `expired` sigue contando como
 abandono o como «no vino» según tenga `called_at` (§ 2.7). El parámetro `date` permite mirar un día
 anterior sin más: un día sin turnos devuelve ceros, no 404.
+
+---
+
+## 2.9 Enmienda del 19/09/2026 — despliegue en VPS propio, no en Google Cloud ni Aiven
+
+Solicitud del autor: desplegar en el VPS de Contabo que ya tiene comprado, con el
+dominio `devkora.com` que también ya tiene. Cambia § 2.3 y la respuesta de 06 § 0, así que queda aquí
+y no en "Deuda conocida". El motivo es económico y práctico, y se dice tal cual: Google Cloud es de
+pago y ya lo usó antes; el VPS y el dominio están pagados.
+
+| Antes decía | Ahora | Por qué |
+|---|---|---|
+| 06 § 0 y § 1: Cloud Run + Cloud SQL para el piloto, **Aiven** para demo y staging | **Todo en un VPS de Contabo**: MySQL 8.4, la API y el frontend en el mismo servidor | el servidor y el dominio ya están pagados; Aiven y GCP añadían cuenta, coste y latencia entre nubes para una demo |
+| § 2.3: «Docker de la API» fuera, ni una línea | **Entra**: `mesa247-api/Dockerfile` y `mesa247-web/Dockerfile` | sin imagen no hay despliegue; es el coste mínimo de haber decidido desplegar |
+| § 2.3: «servir el build de React desde FastAPI» fuera | **Sigue fuera.** Lo sirve Caddy, no FastAPI | mismo origen sin tocar la aplicación: se resuelve en el proxy, no en el código |
+| Frontend en Hostinger (propuesta inicial del autor) | **Frontend en el VPS**, bajo el mismo host que la API | el frontend llama a `/api/...` en rutas relativas y no tiene ninguna variable de entorno; separarlo obligaba a añadir `VITE_API_BASE_URL` y `CORSMiddleware`, dos cambios de código en un proyecto ya auditado. Hostinger se queda con el DNS |
+| § 2.3: CI/CD fuera | **Sigue fuera** | el despliegue es un script idempotente por SSH, no una tubería |
+
+**Lo que el VPS da y Aiven no.** Copia de seguridad diaria con rotación de 14 días —el tier gratuito
+de Aiven no traía backups (06 § 1)—, la base en la misma máquina que la API (sin latencia entre
+nubes) y control del cortafuegos. **Lo que no da:** recuperación a un punto en el tiempo, réplicas y
+el respaldo operativo de un servicio gestionado. Para un piloto real, la recomendación de 06 § 1
+sigue siendo Cloud SQL; esto es la demo.
+
+**Lo que cambia en seguridad respecto del plan.** MySQL queda con el puerto público, igual que lo
+habría estado en Aiven, pero con TLS obligatorio (`require_secure_transport=ON`), usuario con
+`REQUIRE SSL` y certificado propio cuyo `subjectAltName` incluye la IP, porque el backend verifica
+el hostname. `root@'%'` —que la imagen oficial crea— se elimina. El detalle está en `deploy/README.md`, que no se
+versiona: el despliegue es de quien levanta el servidor, no parte de la entrega.
+
+**`DEMO_MODE=true` en el despliegue.** Decisión consciente contra lo que dice el README de la API
+para «cualquier despliegue real»: quien evalúe la prueba tiene que poder abrir la tablet desde
+`/admin` sin que nadie le pase un token. Es una fábrica de credenciales sin autenticación y esto no
+es producción. Apagarlo es una variable en `/opt/mesa247/app.env`.
+
+**Lo que queda pendiente y no se disimula:** `CREATE_TABLES=true` sigue creando el esquema al
+arrancar, que es justo lo que 06 § 1 desaconseja para producción (varias instancias migrando a la
+vez); aquí hay una sola instancia y sigue sin haber Alembic (§ 2.3). El despliegue no tiene rollback
+de un comando: se vuelve atrás reconstruyendo la imagen anterior.
 
 ---
 
