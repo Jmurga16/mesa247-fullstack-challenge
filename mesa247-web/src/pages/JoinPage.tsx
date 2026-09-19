@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import AlreadyInQueueNotice from '../components/AlreadyInQueueNotice'
@@ -6,25 +6,19 @@ import PartySizeField from '../components/PartySizeField'
 import PhoneField from '../components/PhoneField'
 import { useLocationInfo } from '../hooks/useLocationInfo'
 import { ApiError, OfflineError, api } from '../lib/api'
-import { readLocal, removeLocal, storageKeys, uuid, writeLocal } from '../lib/storage'
+import { PHONE_HINT, PHONE_INVALID, looksLikePhone } from '../lib/phone'
+import { readLocal, storageKeys, uuid, writeLocal } from '../lib/storage'
+import type { JoinBody } from '../lib/api'
 import type { TicketPublic } from '../lib/types'
 import { isTerminal } from '../lib/types'
 
 const OFFLINE_MESSAGE = 'Sin conexión. Revisa tus datos e inténtalo otra vez.'
 
-/** El reintento con mala señal tiene que devolver el mismo turno, no uno nuevo. */
-function ensureRequestId(code: string): string {
-  const key = storageKeys.requestId(code)
-  const stored = readLocal(key)
-  if (stored) return stored
-  const fresh = uuid()
-  writeLocal(key, fresh)
-  return fresh
-}
+type Payload = Omit<JoinBody, 'request_id'>
 
-function rotateRequestId(code: string): string {
-  removeLocal(storageKeys.requestId(code))
-  return ensureRequestId(code)
+/** Dos altas distintas no pueden compartir llave de idempotencia. */
+function fingerprint(payload: Payload): string {
+  return `${payload.name.toLowerCase()}|${payload.phone}|${payload.party_size}`
 }
 
 export default function JoinPage() {
@@ -45,9 +39,26 @@ export default function JoinPage() {
   const [conflictError, setConflictError] = useState<string | null>(null)
   const [confirmingRestart, setConfirmingRestart] = useState(false)
 
+  /**
+   * El `request_id` identifica un envío, no un dispositivo: vive en memoria y
+   * atado a los datos del formulario. Guardarlo por local hacía que el segundo
+   * comensal de la misma pantalla reenviara la llave del primero, y el servidor
+   * respondía —con razón— el turno ya creado en lugar de crear el suyo.
+   */
+  const request = useRef<{ key: string; id: string } | null>(null)
+
+  const requestIdFor = (payload: Payload, rotate = false): string => {
+    const key = fingerprint(payload)
+    if (!rotate && request.current?.key === key) return request.current.id
+    request.current = { key, id: uuid() }
+    return request.current.id
+  }
+
   const savedToken = readLocal(storageKeys.ticketToken(code))
 
   const goToTicket = (ticket: TicketPublic) => {
+    // El envío terminó: la llave no debe sobrevivir a su propio turno.
+    request.current = null
     writeLocal(storageKeys.ticketToken(code), ticket.token)
     writeLocal(storageKeys.lastCode, code)
     navigate(`/t/${ticket.token}`, { replace: true })
@@ -59,19 +70,32 @@ export default function JoinPage() {
     return fallback
   }
 
-  const body = () => ({ name: name.trim(), phone: phone.trim(), party_size: partySize })
+  const body = (): Payload => ({ name: name.trim(), phone: phone.trim(), party_size: partySize })
+
+  // El prefijo del local es solo el punto de partida del campo, no un límite.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || !location) return
+    prefilled.current = true
+    setPhone((current) => current || `${location.phone_prefix} `)
+  }, [location])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (submitting) return
-    setSubmitting(true)
     setFields({})
     setFormError(null)
+    const payload = body()
+    if (!looksLikePhone(payload.phone)) {
+      setFields({ phone: PHONE_INVALID })
+      return
+    }
+    setSubmitting(true)
     try {
-      let ticket = await api.join(code, { request_id: ensureRequestId(code), ...body() })
+      let ticket = await api.join(code, { request_id: requestIdFor(payload), ...payload })
       if (isTerminal(ticket.status)) {
-        // El request_id guardado apunta a un turno ya cerrado: se rota y se reenvía.
-        ticket = await api.join(code, { request_id: rotateRequestId(code), ...body() })
+        // La llave apunta a un turno ya cerrado: se rota y se reenvía.
+        ticket = await api.join(code, { request_id: requestIdFor(payload, true), ...payload })
       }
       goToTicket(ticket)
     } catch (error) {
@@ -117,7 +141,8 @@ export default function JoinPage() {
         throw error
       })
       if (previous) await api.cancelTicket(previous.token)
-      goToTicket(await api.join(code, { request_id: rotateRequestId(code), ...body() }))
+      const payload = body()
+      goToTicket(await api.join(code, { request_id: requestIdFor(payload, true), ...payload }))
     } catch (error) {
       setConflictError(
         describe(error, 'No pudimos crear el registro nuevo. Inténtalo otra vez.'),
@@ -207,7 +232,7 @@ export default function JoinPage() {
             value={phone}
             prefix={location.phone_prefix}
             error={fields.phone}
-            hint="Lo usamos para avisarte cuando tu mesa esté lista."
+            hint={`Lo usamos para avisarte cuando tu mesa esté lista. ${PHONE_HINT}`}
             onChange={setPhone}
           />
 

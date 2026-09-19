@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PhoneField from '../components/PhoneField'
 import { useLocationInfo } from '../hooks/useLocationInfo'
 import { ApiError, OfflineError, api } from '../lib/api'
+import { PHONE_INVALID, looksLikePhone } from '../lib/phone'
 import { storageKeys, writeLocal } from '../lib/storage'
 
 /**
@@ -20,11 +21,23 @@ export default function RecoverPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // El número se busca tal como se escribió al anotarse: con su código de país.
+  const prefilled = useRef(false)
+  useEffect(() => {
+    if (prefilled.current || !location) return
+    prefilled.current = true
+    setPhone((current) => current || `${location.phone_prefix} `)
+  }, [location])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (busy) return
-    setBusy(true)
     setError(null)
+    if (!looksLikePhone(phone)) {
+      setError(PHONE_INVALID)
+      return
+    }
+    setBusy(true)
     try {
       const ticket = await api.lookup(code, phone.trim())
       writeLocal(storageKeys.ticketToken(code), ticket.token)

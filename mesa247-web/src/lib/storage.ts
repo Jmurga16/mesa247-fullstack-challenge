@@ -2,7 +2,6 @@
 // tumbar la pantalla, así que todo acceso va envuelto.
 
 export const storageKeys = {
-  requestId: (code: string) => `mesa247:request:${code}`,
   ticketToken: (code: string) => `mesa247:ticket:${code}`,
   lastCode: 'mesa247:last-code',
   hostToken: 'mesa247:host-token',
@@ -33,7 +32,7 @@ export function removeLocal(key: string): void {
 }
 
 /**
- * uuid v4 para `request_id`. `crypto.randomUUID` solo existe en contextos
+ * uuid v4 para el `request_id` de cada envío. `crypto.randomUUID` solo existe en contextos
  * seguros; el respaldo basta porque esto es una llave de idempotencia, no una
  * credencial (el token del turno lo genera el servidor).
  */
