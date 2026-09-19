@@ -550,3 +550,16 @@ Nada más. Lo que falte va a la nota con su estimación.
     persona vuelve a anotarse; si no, sigue abierto hasta el cierre del día, que tampoco existe
     (punto 1). Para el reporte, ambos son el mismo agujero: es `pending`, y por eso se publica
     (§ 2.8). Sin cierre del día, el reporte de un día pasado puede no cuadrar nunca.
+
+Los tres siguientes los añadió la auditoría de código del 19/09/2026
+([auditoría 05](../auditoria/05_auditoria_de_codigo.md)); son de implementación, no de alcance.
+
+13. **`on_the_way` no lo activa nadie.** La columna, el campo del contrato y el distintivo de la tablet
+    existen, pero el endpoint es el opcional 2 y no está escrito: hoy siempre vale `false`. Se conserva
+    para no cambiar contrato y tabla dos veces.
+14. **Una consulta por fila para el estado del aviso.** `host_row` busca el último evento de
+    notificación fila a fila. Con la cola de una puerta son decenas de consultas cortas; conviene una
+    sola agregada antes de un local con volumen (≈ 0,1 d).
+15. **Ningún linter ni formateador.** Ni `ruff` ni `eslint` están configurados: la consistencia depende
+    de la revisión a mano. Es lo primero que se añade si el proyecto sigue (≈ 0,1 d con su paso de CI,
+    que también está fuera del corte).
