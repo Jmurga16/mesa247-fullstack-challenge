@@ -14,10 +14,6 @@ export function weekdayOf(serviceDate: string): string {
   return WEEKDAY.format(new Date(year, month - 1, day))
 }
 
-/**
- * Desfase entre el reloj del servidor y el del dispositivo. La cuenta regresiva
- * del llamado no puede depender de la hora del celular.
- */
 /** «Viernes 11 de septiembre»: el encabezado del reporte del día. */
 export function longDateOf(serviceDate: string): string {
   const [year, month, day] = serviceDate.split('-').map(Number)
@@ -25,6 +21,12 @@ export function longDateOf(serviceDate: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/**
+ * Desfase entre el reloj del servidor y el del dispositivo. La cuenta regresiva
+ * del llamado no puede depender de la hora del celular. Se mide **al recibir** el
+ * dato y se conserva: recalcularlo en cada render devuelve siempre `server_now`
+ * y el contador se queda quieto hasta la respuesta siguiente.
+ */
 export function clockSkewMs(serverNow: string): number {
   return Date.parse(serverNow) - Date.now()
 }

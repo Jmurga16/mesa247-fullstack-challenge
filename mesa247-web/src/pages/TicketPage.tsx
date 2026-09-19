@@ -73,6 +73,13 @@ export default function TicketPage() {
     return () => clearInterval(id)
   }, [ticket?.status])
 
+  // El desfase con el servidor se fija con cada dato nuevo, no en cada render:
+  // así el segundo que pasa en el celular es un segundo menos en la cuenta.
+  const skewRef = useRef<{ serverNow: string; value: number }>({ serverNow: '', value: 0 })
+  if (ticket && ticket.server_now !== skewRef.current.serverNow) {
+    skewRef.current = { serverNow: ticket.server_now, value: clockSkewMs(ticket.server_now) }
+  }
+
   // Animación solo cuando el número baja (07 § 4 punto 2).
   const previousAhead = useRef<number | null>(null)
   const [dropped, setDropped] = useState(false)
@@ -131,14 +138,18 @@ export default function TicketPage() {
     return (
       <main className="screen screen-narrow">
         <section className="card">
+          {/* El aviso de red va antes del «cargando»: si la primera consulta no sale,
+              el comensal tiene que saberlo y no quedarse mirando un spinner. */}
+          <ConnectionBanner offline={polling.offline} />
           <p className="muted" role="status">Cargando tu turno…</p>
         </section>
       </main>
     )
   }
 
-  const skew = clockSkewMs(ticket.server_now)
-  const remaining = ticket.deadline_at ? minutesLeft(ticket.deadline_at, skew) : null
+  const remaining = ticket.deadline_at
+    ? minutesLeft(ticket.deadline_at, skewRef.current.value)
+    : null
 
   return (
     <main className="screen screen-narrow">
@@ -161,6 +172,9 @@ export default function TicketPage() {
         </header>
 
         <ConnectionBanner offline={polling.offline} />
+        {polling.error && (
+          <p className="banner banner-warn" role="alert">{polling.error.message}</p>
+        )}
 
         {ticket.status === 'waiting' && (
           <>
