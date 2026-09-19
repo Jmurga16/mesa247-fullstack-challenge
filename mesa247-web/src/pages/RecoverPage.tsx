@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PhoneField from '../components/PhoneField'
 import { useLocationInfo } from '../hooks/useLocationInfo'
 import { ApiError, OfflineError, api } from '../lib/api'
-import { PHONE_INVALID, looksLikePhone } from '../lib/phone'
+import { PHONE_INVALID, explainPhoneError, looksLikePhone } from '../lib/phone'
 import { storageKeys, writeLocal } from '../lib/storage'
 
 /**
@@ -26,7 +26,7 @@ export default function RecoverPage() {
   useEffect(() => {
     if (prefilled.current || !location) return
     prefilled.current = true
-    setPhone((current) => current || `${location.phone_prefix} `)
+    setPhone((current) => current || location.phone_prefix)
   }, [location])
 
   const submit = async (event: FormEvent) => {
@@ -47,7 +47,8 @@ export default function RecoverPage() {
       if (cause instanceof OfflineError) {
         setError('Sin conexión. Revisa tus datos e inténtalo otra vez.')
       } else if (cause instanceof ApiError) {
-        setError(cause.status === 422 ? (cause.fields.phone ?? cause.message) : cause.message)
+        const fields = explainPhoneError(cause.fields, phone.trim(), location?.phone_prefix ?? '')
+        setError(cause.status === 422 ? (fields.phone ?? cause.message) : cause.message)
       } else {
         setError('No pudimos buscar tu turno. Inténtalo otra vez.')
       }

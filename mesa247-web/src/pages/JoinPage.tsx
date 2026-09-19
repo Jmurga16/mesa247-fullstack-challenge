@@ -6,7 +6,7 @@ import PartySizeField from '../components/PartySizeField'
 import PhoneField from '../components/PhoneField'
 import { useLocationInfo } from '../hooks/useLocationInfo'
 import { ApiError, OfflineError, api } from '../lib/api'
-import { PHONE_HINT, PHONE_INVALID, looksLikePhone } from '../lib/phone'
+import { PHONE_HINT, PHONE_INVALID, explainPhoneError, looksLikePhone } from '../lib/phone'
 import { readLocal, removeLocal, storageKeys, uuid, writeLocal } from '../lib/storage'
 import type { JoinBody } from '../lib/api'
 import type { TicketPublic } from '../lib/types'
@@ -108,7 +108,7 @@ export default function JoinPage() {
   useEffect(() => {
     if (prefilled.current || !location) return
     prefilled.current = true
-    setPhone((current) => current || `${location.phone_prefix} `)
+    setPhone((current) => current || location.phone_prefix)
   }, [location])
 
   const submit = async (event: FormEvent) => {
@@ -131,7 +131,7 @@ export default function JoinPage() {
       goToTicket(ticket)
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
-        setFields(error.fields)
+        setFields(explainPhoneError(error.fields, payload.phone, location?.phone_prefix ?? ''))
       } else if (error instanceof ApiError && error.code === 'already_in_queue') {
         // El mensaje del backend nombra la pantalla; aquí esa pantalla ya está delante.
         setConflict(true)
