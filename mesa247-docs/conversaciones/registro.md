@@ -394,3 +394,83 @@ Verificación sin relajar pruebas: 60 tests de backend, `npm run build` y 17 de 
 `hooks/usePolling.ts`, `components/NoHostSession.tsx`, `components/ErrorBanner.tsx`,
 `pages/HostPage.tsx`, `pages/ReportPage.tsx`, `pages/TicketPage.tsx`; informe
 `auditoria/05_auditoria_de_codigo.md`, deuda en 09 § 9 e índices de `auditoria/` y `mesa247-docs/`.
+
+## 2026-09-19 — Despliegue en VPS propio: base de datos, API y frontend
+
+**Parte del proyecto:** backend y frontend.
+
+**Solicitud:** «Decisión cambiada, cambiaremos el aiven. Ve preparando mi VPS de Contabo […] para
+poder desplegar la base de datos». Después, en la misma sesión: «Desplegamos la
+API también acá en el VPS, y usaré hostinger para el front. Esto por decisión de que ya tengo mi VPS
+comprado y tengo un dominio en devkora.com; creería que se hará más sencillo, ya que google cloud es
+de pago porque ya lo usé antes».
+
+**Decisión y resultado:** se abandona el plan de 06 § 0 —Cloud Run con Cloud SQL para el piloto y
+Aiven para la demo— y se despliega todo en el VPS de Contabo, con el dominio `mesa247.devkora.com`.
+El motivo es el que dio el autor: el servidor y el dominio ya están pagados. Queda escrito como
+enmienda 09 § 2.9, porque cambia § 2.3: entra el Docker de la API, que estaba fuera del corte.
+
+La base es MySQL 8.4 en Docker, misma imagen y mismos ajustes de juego de caracteres y zona horaria
+que el Compose local, más TLS obligatorio (`require_secure_transport=ON`), usuario con `REQUIRE SSL`
+y certificado emitido por una CA propia. El `subjectAltName` lleva a la vez la IP y el nombre interno
+`db` porque `app/db.py` conecta con `check_hostname=True`: sin ese SAN la verificación falla por cada
+una de las dos rutas. Se eliminó `root@'%'`, que la imagen oficial crea y que, con el puerto
+publicado, dejaba a root alcanzable desde internet. Se añadió copia diaria con rotación de 14 días,
+que es lo que el tier gratuito de Aiven no daba (06 § 1).
+
+**Propuesta del autor que se corrigió:** el frontend iba a ir en Hostinger. Se desaconsejó y se
+aceptó la alternativa: el frontend llama a `/api/...` en rutas relativas y no tiene ninguna variable
+de entorno, así que separarlo del backend obligaba a añadir `VITE_API_BASE_URL` y `CORSMiddleware`,
+dos cambios de código en un proyecto ya auditado. Sirviendo el build desde el mismo host con Caddy,
+el origen sigue siendo el mismo y no se toca ni una línea de la aplicación. Hostinger se queda con el
+DNS. `DEMO_MODE` se deja encendido a propósito, contra lo que dice el README para «cualquier
+despliegue real», para que quien evalúe la prueba abra la tablet sin que nadie le pase un token.
+
+**Tres fallos reales que destapó el despliegue**, anotados porque ninguno es evidente: en Ubuntu
+24.04 `ufw` e `iptables-persistent` son incompatibles (`ufw: Breaks: iptables-persistent`), así que
+las reglas se reaplican con una unidad systemd; ufw no filtra los puertos que publica Docker, porque
+Docker inserta su DNAT antes, y por eso el acceso a 3306 se filtra en la cadena `DOCKER-USER`; y el
+contenedor no alcanza la IP pública del propio host, de modo que la API conecta a la base por la red
+interna de Docker.
+
+**Verificación:** conexión desde fuera con la misma pila del backend (TLS con la CA y verificación de
+hostname correcta; CA ajena rechazada con `CERTIFICATE_VERIFY_FAILED`; sin TLS, rechazado por el
+servidor); `/readyz` en verde contra MySQL; las cuatro tablas creadas y el seed de los tres locales;
+y el flujo completo sobre HTTPS en producción —alta, reintento con el mismo `request_id`, lookup por
+teléfono, cola del anfitrión, llamar y borrar—, dejando la cola vacía.
+
+**Archivos:** `deploy/` completo —que a decisión del autor **no se versiona**, por ser propio de quien levanta el servidor y no parte de la entrega— (`db/provision.sh`, `db/compose.yaml`, `db/mysql.cnf`,
+`db/make-certs.sh`, `db/firewall.sh`, `db/backup.sh`, `app/deploy.sh`, `app/compose.yaml`,
+`app/Caddyfile`, los dos `env.example` y `deploy/README.md`); `mesa247-api/Dockerfile` y
+`mesa247-web/Dockerfile` con sus `.dockerignore`; enmienda 09 § 2.9; y actualización de
+`mesa247-api/.env.example`, `mesa247-api/README.md`, `mesa247-docs/api/README.md`, el README raíz y
+el índice de documentación, donde Aiven dejó de ser el destino previsto.
+
+## 2026-09-19 — Prueba manual del autor: teléfono y conmutador de papel
+
+**Parte del proyecto:** frontend.
+
+**Solicitud:** «Probando yo mismo la aplicación solo he visto 2 cosas: cuando sugieres empezar con +51,
+aparece con un espacio en blanco "+51 " y eso no permite pasar el número» y «en la esquina podría ser
+como artificio poner Admin / Cliente, para que se pueda probar tranquilamente ambas cosas».
+
+**Decisión y resultado:** el primero es un fallo real, reproducido antes de tocar nada. El campo llega
+con el prefijo del local y quien lee la pista teclea su número completo encima; el saneado borraba ese
+segundo `+` pero conservaba sus dígitos, así que el código de país quedaba duplicado en silencio y el
+servidor rechazaba un número correcto con el mensaje genérico. Corrección: un `+` escrito después del
+principio empieza un número nuevo, y el prefijo deja de llegar con el espacio detrás. El caso del código
+repetido **sin** `+` no se adivina —colapsarlo corrompería un fijo legítimo—, así que se deja como
+inválido pero con un aviso que nombra lo que sobra.
+
+La batería no lo veía porque los 17 escenarios usaban `fill()`, que escribe el valor de una vez y nunca
+ejerce el saneado. El caso 18, nuevo, **teclea**.
+
+El segundo es andamiaje de la demo, no producto: un conmutador «Comensal / Anfitrión» fijo, detrás de
+`DEMO_MODE` como el resto de atajos, con el lado del anfitrión entrando directo a su cola si esa
+pantalla ya abrió una tablet. Se etiquetó con el vocabulario de la aplicación en vez de «Admin /
+Cliente». Se colocó primero abajo a la derecha; el autor avisó de que ahí no se veía y se subió arriba.
+El caso 19 lo cubre. Verificación: 60 tests de backend, `npm run build` y 19 de 19 en navegador.
+
+**Archivos:** `lib/phone.ts`, `pages/JoinPage.tsx`, `pages/RecoverPage.tsx`,
+`components/DemoSwitch.tsx`, `App.tsx`, `app.css`; escenarios 18 y 19 en `tests/functional.py`;
+informe funcional, README de web y de `tests/`, y el atajo documentado en 09 § 2.7.
