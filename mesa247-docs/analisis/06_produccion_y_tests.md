@@ -1,10 +1,39 @@
 # 06 · Producción, operación y tests que importan
 
+## 0. La respuesta corta (lo que va en la nota, decisión del 18/09/2026)
+
+**Despliegue.** Google Cloud: contenedor → Artifact Registry → **Cloud Run** en southamerica-west1, cerca
+de los tres locales. Base: **Cloud SQL MySQL 8 en el piloto**, por los backups automáticos, la recuperación
+a un punto en el tiempo y la IP privada; **Aiven (tier gratuito) para la demo y el entorno de prueba**,
+que es donde el coste importa y el dato no. Secretos en Secret Manager, despliegue con rollback de tráfico
+en un comando.
+
+**Cómo me entero de que falla.** Cloud Monitoring, con aviso **por correo y al celular**. Cuatro alarmas,
+no una: uptime externo (la caída obvia), 5xx (el deploy malo), **silencio del negocio** —cero altas en un
+local en horario normal— y avisos fallidos. Las dos primeras las ve cualquier health check; **la tercera es
+la que importa un viernes a las 9**, porque la API puede responder 200 mientras el QR está roto o la página
+no carga en móviles, y ahí nadie se entera hasta que el anfitrión llama.
+
+**Qué hago cuando pasa.** Los logs tienen que servir para arreglarlo sin adivinar: JSON con `request_id`,
+`location_id`, `ticket_id` y actor, con teléfonos enmascarados y sin tokens, más Error Reporting para las
+excepciones. Con eso, quien esté de guardia —o cualquier otro desarrollador— ubica el caso concreto. El
+primer movimiento casi siempre es el mismo: si hubo deploy, devolver el tráfico a la revisión anterior; y
+la operación no se detiene, porque la tablet conserva la última cola conocida y el local tiene plan B en
+papel.
+
+Detalle en § 1 (despliegue), § 3 (alarmas) y § 4 (el viernes a las 9).
+
 ## 1. Despliegue
 - Un contenedor (FastAPI + build de React) → Artifact Registry → Cloud Run en southamerica-west1 (Santiago),
   cerca de los tres locales del piloto.
 - Cloud SQL MySQL 8: conector de Cloud SQL o IP privada, backups automáticos + recuperación a un punto en el tiempo,
   usuario con mínimos privilegios.
+- **Demo y staging: MySQL gestionado en Aiven, tier gratuito.** Sirve para que cualquiera levante el proyecto
+  sin una cuenta de GCP y para probar contra MySQL real (los tests del corte corren en SQLite, y la deuda 8 de
+  09 § 9 pide exactamente esto). No se usa en el piloto, y conviene decir por qué en la nota: los planes
+  gratuitos no traen backups ni recuperación a un punto en el tiempo, el endpoint es público con TLS —no hay
+  conector ni IP privada— y si la región no coincide con southamerica-west1 cada consulta paga latencia entre
+  nubes justo el viernes a las 9.
 - Migraciones con Alembic como Cloud Run Job ANTES de mover tráfico (no al arrancar la app: varias instancias
   migrando a la vez). Migraciones compatibles hacia atrás (primero agregar, después quitar) para poder hacer rollback
   del código sin tocar la base.

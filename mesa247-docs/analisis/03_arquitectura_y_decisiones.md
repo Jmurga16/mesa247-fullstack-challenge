@@ -300,6 +300,44 @@ polling vs SSE, intervalos, fórmula del tiempo estimado, librerías del front, 
 asíncrono, reordenamiento, textos de pantalla (salvo la plantilla), proveedor de correo, implementación del rate limit,
 servir el front desde Cloud Run o desde un CDN.
 
+## 6.1 Las que no se deberían cambiar después (decisión del 18/09/2026)
+
+§ 6 es el catálogo en tres niveles. **Esto es lo que va en la nota**: cuatro decisiones propias más una
+que sale del catálogo y no debería faltar. Cada una dice también *qué se rompe si se cambia tarde*, que
+es lo que convierte la lista en un argumento y no en un inventario.
+
+1. **Cada espera tiene su propio identificador; el teléfono no es la identidad.** `tickets.id` para uso
+   interno y `public_token` opaco en el link del comensal. El teléfono es una **llave de búsqueda**
+   —`active_key` y la pantalla «Ya estoy en la lista de espera»—, nunca la identidad de la espera.
+   Si se cambia tarde: E.164 normaliza el *contacto*, no a la persona; dos familias comparten número y la
+   gente cambia de número, así que una identidad basada en el teléfono se corrompe sola (§ 6 punto 6).
+
+2. **Los estados, definidos desde el día 1**: `waiting`, `called`, `seated`, `cancelled`, `no_show` —y en
+   el modelo también `removed` (alta por error) y `expired`, que conviene tener aunque no se usen aún.
+   Lo difícil de deshacer no es el enum, es **la definición de la métrica**: qué cuenta como "se fue sin
+   sentarse", si «Ya no voy» después del llamado es abandono o no-show, y desde dónde se mide la espera
+   media (llegada → sentado). Cambiarlo a mitad del piloto no rompe nada técnico: rompe la comparabilidad,
+   que es exactamente lo que el piloto tiene que demostrar (§ 6 punto 7).
+
+3. **Cada espera pertenece a un local.** `location_id` en todas las tablas y en **toda** consulta, y el
+   local sale del token del anfitrión, jamás del body. Si se cambia tarde: un local viendo la cola de otro
+   no es un bug que se parchea, es una fuga de datos entre clientes; por eso tiene un test no negociable
+   propio (09 § 7.1, test 4).
+
+4. **El modelo de tiempo.** UTC en la base, escrito siempre por la aplicación; zona IANA por local; día de
+   servicio con hora de corte configurable por local. El piloto cruza dos husos —Santiago va 2 horas
+   adelante de Lima— y un viernes que termina a las 00:30 sigue siendo viernes. Si se cambia tarde:
+   reprocesar fechas mal guardadas sale mal siempre, y todo el reporte se recalcula con otro significado.
+
+5. **La URL del QR impreso** (esta sale de § 6, nivel 2, y es la más cara de todas). Está pegada en la
+   puerta; a 150 locales, cambiarla es reimprimir y recorrer locales uno por uno. Mitigación desde el día 1:
+   dominio propio y código corto con indirección en base — nunca un `*.run.app` ni un id interno. Así el QR
+   sobrevive a cualquier cambio de infraestructura.
+
+Y el recordatorio que enmarca la lista: lo único **verdaderamente** irrecuperable es el nivel 1 de § 6 —el
+evento que no registraste y el consentimiento que no pediste—. Por eso la bitácora entra desde el primer
+día aunque el reporte sea de la semana 3.
+
 ## 7. Lo que la IA te va a proponer y conviene rechazar (con argumento)
 | Propuesta típica | Respuesta |
 |---|---|
