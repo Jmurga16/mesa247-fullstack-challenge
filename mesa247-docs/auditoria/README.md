@@ -18,6 +18,10 @@ No es un plan alternativo: **el alcance y el contrato vigentes están en [09_alc
 1. [02 · Resolución de hallazgos](02_resolucion_de_hallazgos.md): qué se decidió con cada hallazgo y dónde quedó. **Empieza por aquí.**
 2. [01 · Informe de auditoría](01_informe_de_auditoria.md): el informe original, con el detalle y la evidencia de cada hallazgo. Útil si quieres el razonamiento completo.
 
+Después del análisis llegó el código, y con él dos revisiones más, ya sobre la implementación:
+[04 · Pruebas funcionales integradas](04_pruebas_funcionales_integradas.md) y
+[05 · Auditoría de código](05_auditoria_de_codigo.md). No forman parte del cierre del 16/09.
+
 ## Dictamen
 
 La arquitectura base es razonable: FastAPI + React, un servicio, polling, SQLite local y cuatro tablas para el corte. No se recomienda sustituirla, y no se sustituyó.
