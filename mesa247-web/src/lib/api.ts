@@ -65,11 +65,10 @@ type Options = {
   body?: unknown
   token?: string
   signal?: AbortSignal
-  onStatus?: (status: number) => void
 }
 
 async function request<T>(path: string, options: Options = {}): Promise<T> {
-  const { method = 'GET', body, token, signal, onStatus } = options
+  const { method = 'GET', body, token, signal } = options
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
@@ -87,7 +86,6 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
     throw new OfflineError()
   }
 
-  onStatus?.(response.status)
   const payload = await response.json().catch(() => null)
 
   if (response.ok) return payload as T
