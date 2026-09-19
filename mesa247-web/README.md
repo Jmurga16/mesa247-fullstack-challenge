@@ -91,6 +91,12 @@ src/
 
 Para apuntar a otro backend, copia `.env.example` a `.env` y ajusta `API_PROXY_TARGET`; reinicia Vite. Esa variable configura el servidor local y no llega al navegador.
 
+## Pruebas funcionales integradas
+
+Las [pruebas de navegador](tests/README.md) ejecutan los flujos de comensal y anfitrión contra una API
+real y datos temporales. Incluyen recuperación del turno, reporte, dos tablets y cortes de conexión.
+Resultados de la ejecución y fallos abiertos: [informe del 19/09/2026](../mesa247-docs/auditoria/04_pruebas_funcionales_integradas.md).
+
 ## Fuera de esta versión
 
 «Voy en camino» y el alta manual desde la tablet son opcionales del plan y su endpoint todavía no existe en la API ([contrato implementado](../mesa247-docs/api/README.md)). Tampoco hay reordenar ni re-llamar. El reporte del día sí está ([09 § 2.8](../mesa247-docs/analisis/09_alcance_y_plan_de_implementacion.md)), pero no su envío por correo al cierre: sin cierre del día automático no hay a qué engancharlo. El alcance y sus motivos están en el [plan de implementación](../mesa247-docs/analisis/09_alcance_y_plan_de_implementacion.md).
