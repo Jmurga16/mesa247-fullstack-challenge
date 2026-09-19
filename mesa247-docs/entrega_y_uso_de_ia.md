@@ -45,11 +45,17 @@ no entra se menciona con su estimación y su dependencia, no se desarrolla.
 - [ ] **Esta carpeta `mesa247-docs` no va en el repositorio entregado.**
 
 **Las conversaciones con IA.** Tres exportaciones separadas —nota, backend y frontend—, completas y
-sin editar. Si se recorta algo personal, se declara el recorte. Ver
+sin editar. Si se recorta algo personal, se declara el recorte; en este proyecto el recorte previsible
+son las credenciales del VPS (contraseñas de root y de MySQL, Bearer del seed), que se sustituyen por
+una marca visible y se declaran, no se borran en silencio. El [registro](conversaciones/registro.md)
+**no las sustituye**: es un resumen ordenado por tema y, por tanto, material editado; sirve para
+relacionar cada conversación con la decisión que salió de ella. Ver
 [conversaciones/README.md](conversaciones/README.md).
 
-**Una reflexión de 10 líneas** sobre algo propio que llegó a producción. Es personal y se escribe a
-mano; no vive en este repositorio.
+**Una reflexión de 10 líneas** sobre algo propio que llegó a producción, en
+[`entregables/04_reflexion_produccion.md`](entregables/04_reflexion_produccion.md). Trata de este mismo
+proyecto: es lo último que se llevó solo hasta un servidor real, y el despliegue del 19/09/2026 lo hace
+comprobable. Vive en `mesa247-docs`, que no va en el repositorio entregado.
 
 ## 3. Honestidad sobre el uso de IA
 

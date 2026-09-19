@@ -28,6 +28,7 @@ Mesa247/
 ```
 
 - [Nota técnica](entregables/01_nota_tecnica.md): el entregable 1, escrito. El análisis que lo sostiene está en `analisis/`.
+- [Reflexión de producción](entregables/04_reflexion_produccion.md): el entregable 4, diez líneas sobre este mismo proyecto en el VPS.
 - [Auditoría](auditoria/README.md): revisión y resolución de hallazgos.
 - [Pruebas funcionales integradas](auditoria/04_pruebas_funcionales_integradas.md): ejecución del backend y frontend del 19/09/2026, con los cinco fallos que destapó y cómo se corrigieron.
 - [Auditoría de código](auditoria/05_auditoria_de_codigo.md): revisión de la implementación contra el contrato, limpieza aplicada y deuda técnica nueva.
