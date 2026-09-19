@@ -1,0 +1,30 @@
+# Entornos y configuración local
+.env
+.env.*
+!.env.example
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / Vite / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Datos locales y logs
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

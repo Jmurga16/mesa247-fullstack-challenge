@@ -94,3 +94,22 @@ La IA propuso que la consulta por teléfono devolviera solo lectura (grupos dela
 token ni «Ya no voy», para no tocar O3. Se rechazó: adivinar un móvil completo y válido de alguien que
 además está en la cola de ese local hoy no se considera un ataque realista, y media recuperación no resuelve
 el caso. El OTP se acepta como propuesta de seguridad posterior, no alcanzable en este corte.
+
+## 2026-09-18 — Entregable 2: estructura inicial ejecutable
+
+**Parte del proyecto:** backend y frontend.
+
+**Prompt o solicitud**
+
+Crear la estructura de carpetas de FastAPI y React, con README breves y actualizables. En esta etapa solo se requiere que ambos proyectos levanten, sin funcionalidades de negocio.
+
+**Decisión**
+
+Mantener `mesa247-api` y `mesa247-web` conforme al plan: FastAPI con `/healthz` y configuración mediante Pydantic Settings; React + TypeScript + Vite + React Router con una página inicial y `app.css`. Preparar carpetas de dominio, rutas, tests, páginas y componentes. Posponer base de datos y flujos de negocio al desarrollo posterior. Configurar el proxy local de Vite hacia el backend y ejemplos de entorno opcionales.
+
+**Resultado**
+
+- Creados los puntos de entrada, configuración y dependencias de ambos proyectos, con versiones directas fijas y `package-lock.json` en la web.
+- Añadidos README de raíz, API y web, con arranque en PowerShell y Bash; `.gitignore` excluye entornos, dependencias, builds y datos locales.
+- Validado en Windows con Python 3.11.9 y Node.js 24.19.0: instalación de dependencias, `pip check`, `npm ci`, comprobación de tipos y build. Ambos servidores arrancaron; `/healthz`, `/docs`, el HTML y el módulo de entrada de React respondieron por HTTP, y `/healthz` funcionó a través del proxy de Vite.
+- Esta validación cubre el arranque inicial; todavía no corresponde al corte funcional completo ni a sus tests de negocio. Los comandos de Bash quedan documentados, sin ejecución en Linux/macOS en esta etapa.
