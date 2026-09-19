@@ -1,19 +1,30 @@
 /**
- * Los locales del piloto, para el atajo de la prueba de `/`.
+ * Andamiaje de la prueba, no producto.
  *
- * En producción esto no existe: a `/q/{code}` se llega escaneando el QR pegado
- * en la puerta, y nadie elige un restaurante de una lista. La pantalla comprueba
- * cada código contra la API, así que un local que no esté sembrado o que esté
- * cerrado aparece como no disponible en vez de llevar a una pantalla muerta.
+ * A `/q/{code}` se llega escaneando el QR de la puerta, y la tablet se abre una
+ * vez con el enlace de su local. Ninguna de las dos cosas se puede enseñar en
+ * una demo: no hay cámara, y quien prueba la aplicación no tiene por qué
+ * manejar tokens. Estos atajos los sustituyen, y viven detrás de `DEMO_MODE`
+ * en el backend: apagado, desaparecen y el producto sigue entero.
  */
-export type DemoLocation = {
-  code: string
-  name: string
-  city: string
+import type { DemoLocation, DemoTablet } from './types'
+
+/** La lista sale de la base, así que nunca ofrece un local que no existe. */
+export async function demoLocations(signal?: AbortSignal): Promise<DemoLocation[]> {
+  const response = await fetch('/api/demo/locations', { signal })
+  if (!response.ok) return []
+  return (await response.json()) as DemoLocation[]
 }
 
-export const DEMO_LOCATIONS: DemoLocation[] = [
-  { code: 'terraza-lima', name: 'La Terraza Azul', city: 'Lima' },
-  { code: 'vientos-lima', name: 'Cuatro Vientos', city: 'Lima' },
-  { code: 'casa-santiago', name: 'Casa Mediterránea', city: 'Santiago' },
-]
+export async function openDemoTablet(code: string): Promise<DemoTablet> {
+  const response = await fetch(`/api/demo/locations/${encodeURIComponent(code)}/tablet`, {
+    method: 'POST',
+  })
+  if (!response.ok) throw new Error('demo_tablet_failed')
+  return (await response.json()) as DemoTablet
+}
+
+/** Etiqueta de ciudad para el selector; sale de la zona horaria del local. */
+export function cityOf(timezone: string): string {
+  return (timezone.split('/')[1] ?? timezone).replace(/_/g, ' ')
+}

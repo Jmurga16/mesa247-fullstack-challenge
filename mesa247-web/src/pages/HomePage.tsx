@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
-import { DEMO_LOCATIONS } from '../lib/demo'
-import type { DemoLocation } from '../lib/demo'
-
-type Option = DemoLocation & { available: boolean }
+import { cityOf, demoLocations } from '../lib/demo'
+import type { DemoLocation } from '../lib/types'
 
 /**
  * Entrada del producto. A la lista se llega por el QR de la puerta, así que lo
@@ -14,29 +11,22 @@ type Option = DemoLocation & { available: boolean }
  */
 export default function HomePage() {
   const navigate = useNavigate()
-  const [options, setOptions] = useState<Option[] | null>(null)
+  const [options, setOptions] = useState<DemoLocation[] | null>(null)
   const [chosen, setChosen] = useState('')
 
+  // La lista la da la API: solo aparecen locales que existen y están abiertos,
+  // así que el selector no ofrece puertas muertas ni «no disponibles».
   useEffect(() => {
     const controller = new AbortController()
-    Promise.all(
-      DEMO_LOCATIONS.map(async (demo): Promise<Option> => {
-        try {
-          const info = await api.location(demo.code, controller.signal)
-          return { ...demo, name: info.name, available: true }
-        } catch {
-          return { ...demo, available: false }
-        }
-      }),
-    ).then((rows) => {
-      if (controller.signal.aborted) return
-      setOptions(rows)
-      setChosen(rows.find((row) => row.available)?.code ?? '')
-    })
+    demoLocations(controller.signal)
+      .catch(() => [])
+      .then((rows) => {
+        if (controller.signal.aborted) return
+        setOptions(rows)
+        setChosen(rows[0]?.code ?? '')
+      })
     return () => controller.abort()
   }, [])
-
-  const available = options?.filter((option) => option.available) ?? []
 
   return (
     <main className="screen screen-narrow">
@@ -69,13 +59,13 @@ export default function HomePage() {
 
           {options === null && <p className="muted" role="status">Buscando locales…</p>}
 
-          {options !== null && available.length === 0 && (
+          {options !== null && options.length === 0 && (
             <p className="banner banner-warn" role="alert">
               Ningún local responde. Levanta la API y ejecuta <code>python seed.py</code>.
             </p>
           )}
 
-          {options !== null && available.length > 0 && (
+          {options !== null && options.length > 0 && (
             <form
               onSubmit={(event) => {
                 event.preventDefault()
@@ -90,9 +80,8 @@ export default function HomePage() {
                   onChange={(event) => setChosen(event.target.value)}
                 >
                   {options.map((option) => (
-                    <option key={option.code} value={option.code} disabled={!option.available}>
-                      {option.name} · {option.city}
-                      {option.available ? '' : ' (no disponible)'}
+                    <option key={option.code} value={option.code}>
+                      {option.name} · {cityOf(option.timezone)}
                     </option>
                   ))}
                 </select>
