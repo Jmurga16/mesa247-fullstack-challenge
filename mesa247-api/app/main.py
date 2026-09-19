@@ -14,11 +14,14 @@ from app.models import Base
 from app.routers import demo, host, public
 from app.schemas import ErrorResponse
 
+logger = logging.getLogger("mesa247")
+
+
 def create_app(config: Settings | None = None, engine=None) -> FastAPI:
     config = config or settings
-    logging.getLogger("mesa247").setLevel(logging.INFO)
-    if not logging.getLogger("mesa247").handlers:
-        logging.getLogger("mesa247").addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
 
     @asynccontextmanager
     async def lifespan(application):
@@ -53,7 +56,8 @@ def create_app(config: Settings | None = None, engine=None) -> FastAPI:
 
     @application.exception_handler(Exception)
     async def unexpected_error(request, exc):
-        logging.getLogger("mesa247").error("Fallo inesperado: %s", type(exc).__name__)
+        # El detalle va al log del servidor; la respuesta nunca lo expone.
+        logger.error("Fallo inesperado: %s", type(exc).__name__, exc_info=exc)
         return JSONResponse(status_code=500, content={"error": "internal_error",
                             "message": "No pudimos completar la solicitud. Inténtalo de nuevo."})
 
