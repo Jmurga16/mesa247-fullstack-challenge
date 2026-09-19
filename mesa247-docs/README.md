@@ -28,7 +28,7 @@ Mesa247/
 
 - [Nota técnica](entregables/01_nota_tecnica.md): el entregable 1, escrito. El análisis que lo sostiene está en `analisis/`.
 - [Auditoría](auditoria/README.md): revisión y resolución de hallazgos.
-- [Pruebas funcionales integradas](auditoria/04_pruebas_funcionales_integradas.md): ejecución del backend y frontend, resultados y fallos abiertos del 19/09/2026.
+- [Pruebas funcionales integradas](auditoria/04_pruebas_funcionales_integradas.md): ejecución del backend y frontend del 19/09/2026, con los cinco fallos que destapó y cómo se corrigieron.
 - [Conversaciones](conversaciones/README.md): explica cómo se registran los prompts, las decisiones y las conversaciones.
 - [Registro](conversaciones/registro.md): historial cronológico del trabajo asistido por IA.
 - [Prompt inicial](conversaciones/prompt_inicial.md): texto consolidado del análisis y la auditoría. No sustituye las exportaciones originales.
