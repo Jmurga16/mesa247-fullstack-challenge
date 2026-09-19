@@ -1,5 +1,6 @@
 const HOUR = new Intl.DateTimeFormat('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false })
 const WEEKDAY = new Intl.DateTimeFormat('es-PE', { weekday: 'long' })
+const LONG_DATE = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
 
 /** Hora local del navegador; el comensal y el anfitrión están en el local. */
 export function clockTime(iso: string | null): string {
@@ -17,6 +18,13 @@ export function weekdayOf(serviceDate: string): string {
  * Desfase entre el reloj del servidor y el del dispositivo. La cuenta regresiva
  * del llamado no puede depender de la hora del celular.
  */
+/** «Viernes 11 de septiembre»: el encabezado del reporte del día. */
+export function longDateOf(serviceDate: string): string {
+  const [year, month, day] = serviceDate.split('-').map(Number)
+  const text = LONG_DATE.format(new Date(year, month - 1, day)).replace(',', '')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 export function clockSkewMs(serverNow: string): number {
   return Date.parse(serverNow) - Date.now()
 }

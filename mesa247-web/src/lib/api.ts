@@ -1,4 +1,11 @@
-import type { HostAction, HostQueue, HostRow, LocationPublic, TicketPublic } from './types'
+import type {
+  HostAction,
+  HostQueue,
+  HostReport,
+  HostRow,
+  LocationPublic,
+  TicketPublic,
+} from './types'
 
 /** Error del servidor con mensaje ya redactado en español: se muestra tal cual. */
 export class ApiError extends Error {
@@ -132,6 +139,13 @@ export const api = {
 
   hostQueue: (token: string, signal?: AbortSignal) =>
     request<HostQueue>('/api/host/queue', { token, signal }),
+
+  /** Sin fecha, el reporte es el del día de servicio en curso. */
+  hostReport: (token: string, date?: string, signal?: AbortSignal) =>
+    request<HostReport>(
+      date ? `/api/host/report?date=${encodeURIComponent(date)}` : '/api/host/report',
+      { token, signal },
+    ),
 
   hostAction: (token: string, ticketId: number, action: HostAction) =>
     request<HostRow>(`/api/host/tickets/${ticketId}/${action}`, { method: 'POST', token }),

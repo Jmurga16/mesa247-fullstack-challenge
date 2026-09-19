@@ -9,6 +9,7 @@ import TicketPage from './pages/TicketPage'
 // Nadie carga la operación desde el celular del comensal: va en chunks aparte.
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const HostPage = lazy(() => import('./pages/HostPage'))
+const ReportPage = lazy(() => import('./pages/ReportPage'))
 
 function Loading() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/t/:token" element={<TicketPage />} />
       <Route path="/admin" element={<Suspense fallback={<Loading />}><AdminPage /></Suspense>} />
       <Route path="/host" element={<Suspense fallback={<Loading />}><HostPage /></Suspense>} />
+      <Route path="/host/reporte" element={<Suspense fallback={<Loading />}><ReportPage /></Suspense>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

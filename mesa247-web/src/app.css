@@ -294,19 +294,10 @@ input[aria-invalid='true'] {
   outline-offset: 2px;
 }
 
-.phone-prefix {
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  background: var(--surface-2);
-  border-right: 1px solid var(--rule);
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-
 .phone-input input {
   border: 0;
   border-radius: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .phone-input input:focus-visible {
@@ -687,6 +678,76 @@ input[aria-invalid='true'] {
   border-radius: var(--radius);
 }
 
+.host-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Reporte del día ---------- */
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.report-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.report-day input {
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.report-lines {
+  margin: 0;
+  padding: 8px 20px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.report-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.report-line:last-child {
+  border-bottom: 0;
+}
+
+.report-line dt {
+  color: var(--ink-2);
+  font-size: 1.05rem;
+}
+
+.report-line dd {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* El abandono es el número que el gerente mira primero. */
+.report-line dd.is-warn {
+  color: var(--warn);
+}
+
 .host-footer {
   display: flex;
   justify-content: space-between;
@@ -701,4 +762,39 @@ input[aria-invalid='true'] {
   .queue-actions .button {
     flex: 1 1 120px;
   }
+}
+
+.demo-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.demo-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.demo-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.demo-list .muted {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+}
+
+.host-links {
+  display: inline-flex;
+  gap: 16px;
+  align-items: center;
 }

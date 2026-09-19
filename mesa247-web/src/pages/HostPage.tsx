@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import ConnectionBanner from '../components/ConnectionBanner'
 import { usePolling } from '../hooks/usePolling'
 import { ApiError, OfflineError, api } from '../lib/api'
@@ -73,6 +73,9 @@ export default function HostPage() {
             (<code>/host?token=…</code>). El token queda guardado en esta tablet y se limpia de la
             barra de direcciones.
           </p>
+          <Link className="button button-primary" to="/admin">
+            Abrir la tablet de un local
+          </Link>
           {token && (
             <button type="button" className="button button-secondary" onClick={forgetDevice}>
               Olvidar el token guardado
@@ -105,9 +108,14 @@ export default function HostPage() {
             </p>
           )}
         </div>
-        <button type="button" className="button button-secondary" onClick={polling.refresh}>
-          Actualizar
-        </button>
+        <div className="host-header-actions">
+          <Link className="button button-quiet" to="/host/reporte">
+            Reporte del día
+          </Link>
+          <button type="button" className="button button-secondary" onClick={polling.refresh}>
+            Actualizar
+          </button>
+        </div>
       </header>
 
       <ConnectionBanner offline={polling.offline} />
@@ -232,9 +240,12 @@ export default function HostPage() {
           La lista se actualiza sola cada {QUEUE_INTERVAL_MS / 1000} segundos. «Llamar» dos veces no
           envía un segundo aviso.
         </p>
-        <button type="button" className="link" onClick={forgetDevice}>
-          Cerrar esta tablet
-        </button>
+        <span className="host-links">
+          <Link className="link" to="/admin">Cambiar de tablet</Link>
+          <button type="button" className="link" onClick={forgetDevice}>
+            Cerrar esta tablet
+          </button>
+        </span>
       </footer>
     </main>
   )
