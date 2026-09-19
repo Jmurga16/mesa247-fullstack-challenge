@@ -14,7 +14,8 @@ Con ambos servidores arriba, los enlaces que imprime el seed del backend llevan 
 Mesa247/
 ├── mesa247-api/     FastAPI · Python
 ├── mesa247-web/     React · TypeScript · Vite
-└── mesa247-docs/    Alcance, decisiones y registro de IA
+├── mesa247-docs/    Alcance, decisiones y registro de IA
+└── deploy/          Despliegue en el VPS (no versionado: es de quien levanta el servidor)
 ```
 
 ## Arranque local
@@ -29,6 +30,15 @@ Abre dos terminales desde la raíz del repositorio y sigue los pasos de cada pro
 | Frontend | [README de la web](mesa247-web/README.md) | <http://127.0.0.1:5173> |
 
 Ambos arrancan con valores predeterminados; copiar los archivos `.env.example` es opcional. Detén cada servidor con `Ctrl+C`.
+
+## Despliegue
+
+La aplicación está publicada en <https://mesa247.devkora.com> sobre un VPS propio: MySQL 8.4, la API y el
+frontend en el mismo servidor, con Caddy sirviendo el build de React y haciendo de proxy a `/api`. La tablet
+se abre en <https://mesa247.devkora.com/admin> y la API en <https://mesa247.devkora.com/docs>. El
+procedimiento vive en `deploy/`, fuera del repositorio porque depende del servidor de cada cual; el porqué de
+dejar Google Cloud y Aiven está en la enmienda § 2.9 del
+[alcance](mesa247-docs/analisis/09_alcance_y_plan_de_implementacion.md).
 
 ## Documentación
 

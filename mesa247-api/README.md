@@ -68,7 +68,7 @@ docker compose exec -T db mysql -uroot -proot-local-only mesa247 -e "ALTER TABLE
 ```
 
 Una base nueva ya incluye la columna mediante `create_all()`. El comando no es para repetirlo: MySQL
-responderá que la columna ya existe. En Aiven o producción esta alteración debe ejecutarse como migración
+responderá que la columna ya existe. En el VPS o en producción esta alteración debe ejecutarse como migración
 controlada antes de desplegar el código.
 
 ## Flujo sin frontend
@@ -135,9 +135,12 @@ Copia `.env.example` a `.env` si necesitas persistir configuración; el entorno 
 | MYSQL_PASSWORD | mesa247-local-only | usuario local; ajustar también DATABASE_URL |
 | MYSQL_ROOT_PASSWORD | root-local-only | root local para Compose/tests |
 
-Para una demo remota, configurar la URL de Aiven y su CA permite conservar la base fuera del proceso
-API. Escapa los caracteres especiales del usuario/contraseña en la URL. No se ha desplegado el servicio
-ni validado una cuenta Aiven. SQLite sobre disco efímero no conserva datos entre reemplazos de instancia.
+Para una demo remota, `DATABASE_URL` y `DATABASE_SSL_CA` apuntan la API a un MySQL fuera del proceso.
+Eso es lo que se desplegó: **MySQL 8.4 en un VPS propio**, con TLS obligatorio y una CA
+propia, en lugar del Aiven que preveía el análisis. El procedimiento vive en `deploy/`, que no se versiona
+porque depende del servidor de cada cual; las decisiones están en la enmienda 09 § 2.9.
+Escapa los caracteres especiales del usuario/contraseña en la URL. SQLite sobre disco efímero no conserva
+datos entre reemplazos de instancia.
 La creación/migración de tablas y el aprovisionamiento de dispositivos deben ejecutarse como tareas
 controladas antes de escalar; CREATE_TABLES=false desactiva la creación al arrancar. El seed y sus links
 son para demo, no el emparejamiento de producción.

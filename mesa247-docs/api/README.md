@@ -81,7 +81,8 @@ el seed (`Tablet demo`) no se ve afectada.
 
 SQLite archivo es el arranque predeterminado; MySQL 8.4 en Docker Compose es la alternativa local.
 El modelo SQLAlchemy es común. `DATABASE_URL` selecciona el motor; `DATABASE_SSL_CA` permite verificar
-certificado y hostname de MySQL remoto. Aiven no se conectó ni desplegó en esta etapa.
+certificado y hostname de MySQL remoto: así conecta la API desplegada, contra el MySQL 8.4 de un VPS
+propio (enmienda 09 § 2.9). Aiven quedó descartado.
 El DDL ejecutable es `app/models.py`; el SQL del análisis es referencia histórica.
 
 Referencias: [SQLite en SQLAlchemy](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html),

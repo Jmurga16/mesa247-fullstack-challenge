@@ -16,6 +16,7 @@ Enunciado del encargo: https://prueba-fullstack-mesa247.pages.dev/
 Mesa247/
 ├── mesa247-api/          Backend
 ├── mesa247-web/          Frontend
+├── deploy/               Despliegue en el VPS (no versionado)
 └── mesa247-docs/
     ├── README.md
     ├── entrega_y_uso_de_ia.md   Restricciones, entregables y declaración del uso de IA
