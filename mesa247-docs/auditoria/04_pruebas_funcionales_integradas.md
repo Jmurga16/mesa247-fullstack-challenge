@@ -2,8 +2,9 @@
 
 **Resultado: validación funcional completa aprobada.**
 La primera ejecución dejó doce escenarios aprobados y cinco fallidos, todos de recuperación, sesión
-e idempotencia en el frontend. Se corrigieron los cinco y la batería vuelve a pasar entera: 17 de 17.
-El contrato de API, el modelo de datos y el alcance funcional no cambian.
+e idempotencia en el frontend. Se corrigieron los cinco. Después, la prueba manual del autor destapó
+un sexto fallo en el campo del teléfono que ninguno de los 17 escenarios podía ver, y la batería creció
+a 19: pasa entera. El contrato de API, el modelo de datos y el alcance funcional no cambian.
 
 ## Entorno y resultados
 
@@ -17,7 +18,7 @@ Se conservaron los servidores, datos y sesiones de desarrollo que ya estaban act
 | Backend: `python -m pytest -q`, SQLite temporal | 60 aprobados, 8,48 s | 60 aprobados, 5,56 s |
 | Backend: `python scripts/test_mysql.py`, MySQL 8.4 local | 60 aprobados, 13,29 s | 60 aprobados, 8,47 s |
 | Frontend: `npm run build` (TypeScript y Vite) | Aprobado | Aprobado |
-| Navegador con front y back integrados | 12 aprobados, 5 fallidos | 17 aprobados, 188,61 s |
+| Navegador con front y back integrados | 12 aprobados, 5 fallidos | 19 aprobados, 189,96 s |
 | Instalación en copia limpia y ambos servidores disponibles | 66,03 s | no se repitió |
 | Copia limpia, incluyendo alta → tablet → llamado → celular → asiento y fin del polling | 109,83 s | no se repitió |
 
@@ -55,12 +56,15 @@ La última columna deja ver qué caso destapó cada fallo.
 | 15 | Detener realmente la API 30 s conserva el dato, avisa y recupera el polling tras reiniciar | Aprobado | Fallido, F02 |
 | 16 | Fallo de red en la primera consulta del turno informa de desconexión | Aprobado | Fallido, F05 |
 | 17 | Dos tablets llaman la misma fila antes de refrescar: un evento called y un notification_sent | Aprobado | Aprobado |
+| 18 | El teléfono **tecleado**, no rellenado de golpe: el número entero sobre el prefijo no duplica el país, y el código repetido a mano se nombra | Aprobado | no existía |
+| 19 | El conmutador de la demo cambia de comensal a anfitrión y al revés, sin desbordar la tablet | Aprobado | no existía |
 
 Las capturas del llamado y del reporte se revisaron; las vistas comprobadas no tienen desbordamiento
 horizontal. El doble llamado del caso 17 prueba dos interfaces con una fila antigua; las carreras
 simultáneas entre dos conexiones se verifican en la suite del backend.
 
 Ningún escenario se relajó para que pasara: las expectativas son las mismas que tenían cuando fallaban.
+Los casos 18 y 19 se añadieron después, con los hallazgos de la prueba manual.
 
 ## Fallos corregidos
 
@@ -159,14 +163,46 @@ renderizar `ConnectionBanner`.
 **Corrección:** esa pantalla de carga también muestra el aviso, de modo que el estado de desconexión
 está disponible desde la primera consulta y no solo cuando ya hay dato.
 
+## Prueba manual del autor
+
+Con los 17 escenarios en verde, el autor usó la aplicación a mano y encontró dos cosas que la batería
+no miraba.
+
+### F06 · Alta · El número entero escrito sobre el prefijo duplicaba el código de país
+
+El campo del teléfono llega con el prefijo del local (`+51 `, con un espacio). Quien lee la pista
+—«con el código de país»— teclea su número **completo** encima. El saneado del campo borraba ese
+segundo `+` pero conservaba sus dígitos, así que quedaba `+51 51987654322`: un número corrompido en
+silencio, rechazado por el servidor con el mensaje genérico de teléfono inválido. Se vive como «la
+aplicación no me deja pasar mi número».
+
+**Corrección**, en [phone.ts](../../mesa247-web/src/lib/phone.ts): un `+` escrito después del principio
+**empieza un número nuevo**, que es lo que significa teclear el tuyo entero sobre el prefijo. Además el
+prefijo ya no llega con el espacio detrás, que era un carácter invisible que no aportaba nada.
+
+Queda un caso que no se puede adivinar: escribir `51987654325` —el código repetido, pero sin `+`—
+sobre el prefijo. Colapsarlo corrompería un fijo legítimo de otra zona, así que no se toca; lo que
+cambia es el aviso, que ahora dice «El código de país +51 está dos veces» en vez del mensaje general.
+Ese mensaje solo sustituye a uno que el servidor ya había rechazado, así que no bloquea a nadie.
+
+**Por qué la batería no lo vio:** los 17 escenarios rellenaban el campo con `fill()`, que escribe el
+valor de una vez y nunca ejerce el saneado. El caso 18 **teclea**.
+
+### Conmutador de papel para probar las dos mitades
+
+No es un fallo: probar comensal y anfitrión obligaba a escribir rutas a mano. Se añadió un conmutador
+«Comensal / Anfitrión» fijo en la parte superior, detrás de `DEMO_MODE` como el resto del andamiaje
+(09 § 2.7). Primero se colocó abajo a la derecha, donde pasaba desapercibido, y se subió tras probarlo.
+El caso 19 lo cubre, incluida la comprobación de que no desborda la tablet.
+
 ## Reproducción y evidencia
 
 Comandos y funcionamiento del runner: [tests/README.md](../../mesa247-web/tests/README.md).
-La batería termina con código 0 cuando los 17 escenarios pasan.
+La batería termina con código 0 cuando los 19 escenarios pasan.
 
 Evidencia local generada, excluida de Git:
 
-- `.artifacts/functional/results.json`: resultados de los 17 escenarios.
+- `.artifacts/functional/results.json`: resultados de los 19 escenarios.
 - `.artifacts/functional/*.png`: capturas de flujos y, de la primera ejecución, de los cinco fallos;
   `api.log` y `vite.log` contienen logs de prueba.
 - `.artifacts/clean-start/results.json`: tiempos y resultado de la instalación limpia.
