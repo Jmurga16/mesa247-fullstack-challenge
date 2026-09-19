@@ -247,7 +247,7 @@ class Checks:
     def test_05_chile_and_foreign_phone(self):
         page = self.page()
         self.goto(page, "/q/casa-santiago")
-        expect(page.get_by_label("Teléfono", exact=True)).to_have_value("+56 ")
+        expect(page.get_by_label("Teléfono", exact=True)).to_have_value("+56")
         token = self.join(page, "QA Chile", "+56987654321", "casa-santiago")
         assert self.ticket(page, token)["location_name"] == "Casa Mediterránea"
         token = self.join(page, "QA Foreign", "+34612345678")
@@ -463,6 +463,49 @@ class Checks:
         expect(self.row(host, "QA DoubleCall")).to_contain_text("Aviso enviado")
         events = dict(self.sql("SELECT e.type, count(*) FROM ticket_events e JOIN tickets t ON t.id=e.ticket_id WHERE t.public_token=? GROUP BY e.type", (token,)))
         assert events.get("called") == 1 and events.get("notification_sent") == 1, events
+
+    def test_18_phone_typed_instead_of_filled(self):
+        # fill() escribe de golpe; el sanitizador solo se ejerce tecleando.
+        page = self.page()
+        self.goto(page, f"/q/{CODE}")
+        field = page.get_by_label("Teléfono", exact=True)
+        expect(field).to_have_value("+51")
+        page.get_by_label("Nombre", exact=True).fill("QA Typed")
+        number = self.phone()
+        field.click()
+        field.press("End")
+        # Escribir el número entero encima del prefijo no puede duplicar el país.
+        field.press_sequentially(number)
+        expect(field).to_have_value(number)
+        self.submit(page)
+        page.wait_for_url("**/t/*")
+
+        other = self.page()
+        self.goto(other, f"/q/{CODE}")
+        other.get_by_label("Nombre", exact=True).fill("QA Repeated")
+        repeated = other.get_by_label("Teléfono", exact=True)
+        repeated.click()
+        repeated.press("End")
+        # El código repetido sin «+» es ambiguo: se nombra en vez del mensaje genérico.
+        repeated.press_sequentially(self.phone().removeprefix("+"))
+        self.submit(other)
+        expect(other.get_by_role("alert")).to_contain_text("está dos veces")
+
+    def test_19_demo_switch_between_roles(self):
+        page = self.page(False)
+        self.goto(page, "/")
+        switch = page.get_by_label("Atajo de la prueba: cambiar de papel")
+        expect(switch).to_be_visible()
+        switch.get_by_role("link", name="Anfitrión").click()
+        page.wait_for_url("**/admin")
+        self.no_overflow(page)
+        # Con una tablet ya abierta, el lado del anfitrión entra directo a su cola.
+        self.host(page)
+        self.goto(page, f"/q/{CODE}")
+        switch.get_by_role("link", name="Anfitrión").click()
+        page.wait_for_url("**/host")
+        switch.get_by_role("link", name="Comensal").click()
+        expect(page).to_have_url(self.stack.url + "/")
 
     def cleanup(self):
         for context in self.contexts:
