@@ -113,3 +113,148 @@ Mantener `mesa247-api` y `mesa247-web` conforme al plan: FastAPI con `/healthz` 
 - Añadidos README de raíz, API y web, con arranque en PowerShell y Bash; `.gitignore` excluye entornos, dependencias, builds y datos locales.
 - Validado en Windows con Python 3.11.9 y Node.js 24.19.0: instalación de dependencias, `pip check`, `npm ci`, comprobación de tipos y build. Ambos servidores arrancaron; `/healthz`, `/docs`, el HTML y el módulo de entrada de React respondieron por HTTP, y `/healthz` funcionó a través del proxy de Vite.
 - Esta validación cubre el arranque inicial; todavía no corresponde al corte funcional completo ni a sus tests de negocio. Los comandos de Bash quedan documentados, sin ejecución en Linux/macOS en esta etapa.
+
+## 2026-09-18 — Backend funcional y base de datos local
+
+**Parte del proyecto:** backend.
+
+**Prompt o solicitud**
+
+Implementar solo backend; revisar contrato de API y estructura documentada ante propuestas nuevas o
+cambios del plan. Añadir Docker para la BD, considerando MySQL por Aiven y SQLite por facilidad local.
+
+**Decisión**
+
+- SQLite predeterminado para levantar con Python; MySQL 8.4 alternativo con Compose, volumen y
+  healthcheck. Mismos modelos SQLAlchemy y tests; soporte de CA para MySQL remoto. Sin desplegar Aiven.
+- Implementar endpoints obligatorios, seed, autenticación por dispositivo y aviso falso. Alta manual,
+  on-my-way y frontend quedan fuera de esta implementación de backend.
+- Resolver la contradicción call/seat: comparar el estado observado por la petición en el UPDATE.
+  Dos acciones que leyeron waiting compiten; si seat lee called después del commit, sentar es válido.
+  Evento y estado comparten transacción; aviso y su evento ocurren después.
+
+**Resultado**
+
+- `mesa247-api/`: modelo de cuatro tablas, dominio, rutas, schemas, auth, notificador, seed, Compose,
+  pruebas y scripts para exportar OpenAPI y probar MySQL en una base temporal aislada.
+- Contrato generado en `../api/openapi.json` y explicado en `../api/README.md`; actualizados alcance 09,
+  arquitectura/estructura 03, modelo 04, nota técnica e instrucciones de arranque.
+- 46 tests en SQLite y los mismos 46 en MySQL 8.4 local: siete grupos obligatorios, carreras con dos
+  conexiones, rollback del evento, fallos del aviso, privacidad, fecha de servicio y rotación del seed.
+  `pip check` y validación de Compose correctos. Dos avisos de deprecación de dependencias de TestClient.
+- Copia limpia del backend y entorno virtual nuevo en Windows: instalación, seed, arranque Uvicorn y
+  flujo HTTP alta → reintento → cola → llamado → consulta → recuperación en 35 s, con caché de pip.
+  No es un clon remoto ni una validación de Bash, frontend, Aiven o despliegue.
+
+## 2026-09-18 — Entregable 2: frontend y flujo punta a punta
+
+**Parte del proyecto:** frontend.
+
+**Prompt o solicitud**
+
+Implementar el frontend en React sobre la estructura de carpetas existente, puliéndola donde haga
+falta, teniendo presente el diseño del enunciado y las decisiones ya tomadas —entre ellas «Ya estoy
+en la lista de espera»—, y dejar el flujo punta a punta funcionando para seguir puliendo con los
+fallos o mejoras que aparezcan.
+
+**Decisión**
+
+- Tres pantallas y nada más: `/q/:code`, `/t/:token` y `/host`, con `/` como atajo para abrir un local
+  por su código y una pantalla de ruta inexistente. `/host` se carga en su propio chunk.
+- `src/` se organiza en `lib/` (cliente de API, tipos del contrato, formatos, almacenamiento),
+  `hooks/`, `components/` y `pages/`, en lugar de dejar `api.ts` y `usePolling.ts` sueltos en la raíz.
+- Consulta periódica con hook propio: pausa con la pestaña oculta, reanuda al volver o al recuperar la
+  red, backoff hasta 60 s, conserva el último dato al caer la conexión y se detiene en estado terminal.
+  Un error de negocio (404, 401) no se reintenta.
+- El `request_id` se guarda antes del primer envío. Si el guardado apunta a un turno ya cerrado, se
+  rota y se reenvía: si no, quien cancela queda atrapado en su propio turno cancelado.
+- El 409 del alta abre «Ya estoy en la lista de espera» con el teléfono ya escrito, reutilizando el
+  mismo campo y el mismo mensaje de error del alta, según 09 § 2.5 y 07 § 3.1 P3.
+- Los 422 de Pydantic se traducen a un mensaje por campo en el cliente; los errores de negocio llegan
+  redactados del backend y se muestran tal cual. Nunca se enseña un error técnico.
+- Cuando no queda nadie delante se muestra «Eres el siguiente» en vez de un «0» gigante, y el número
+  solo se anima al bajar.
+
+**Resultado**
+
+- `mesa247-web/src/`: cliente de API, tipos, formatos, almacenamiento, `usePolling`, tres campos
+  compartidos, cinco páginas, rutas y `app.css` completo con modo claro y oscuro. README reescrito.
+- Validación en navegador real (Edge headless por CDP) contra la API y el proxy de Vite: alta desde el
+  formulario, reintento con el mismo `request_id`, 409 con el mismo teléfono desde otro navegador,
+  recuperación por teléfono al mismo turno, teléfono ausente y teléfono inválido; en la tablet, token
+  tomado de la URL y limpiado de la barra, Llamar → fila llamada con hora límite y aviso enviado,
+  Sentar → sale de la cola, y un solo «WhatsApp simulado» por llamado.
+- Corte de red emulado: aparece «sin conexión», se conserva el número y el tiempo, y se recupera sola
+  al volver la red. La pausa con pestaña oculta se confirmó como comportamiento, no como fallo.
+- `npm run build` y `npm run typecheck` en verde; la tablet queda en un chunk aparte de 4,8 kB.
+
+**Correcciones**
+
+- Dos sesiones trabajaron el mismo repositorio a la vez. Al escribir `app/auth.py` y `app/notifier.py`
+  se sobrescribieron las versiones que la sesión de backend acababa de crear. Se reconstruyeron contra
+  la interfaz que usan `routers/host.py`, `seed.py` y los tests (`hash_token`, `HostContext`,
+  `get_host`, `Notifier`, `get_notifier`, `notify_called`) y la suite volvió a verde, pero esos dos
+  archivos son una reconstrucción, no el original. Conviene revisarlos en la lectura final.
+
+**Revisión del frontend (mismo día)**
+
+Cuatro observaciones del autor sobre lo implementado, con su decisión:
+
+1. La pantalla de inicio hablaba de códigos y del seed: lenguaje de back office en una ruta que puede
+   abrir un comensal. `/` pasa a ser entrada de producto («escanea el QR») y todo lo operativo se muda
+   a `/admin`, documentada en el README. La cola del anfitrión sigue en `/host`, como fija 09 § 2.1.
+2. «Ya no voy» se mantiene como está. Se añade una «×» en la pantalla del turno que vuelve a la lista
+   del local sin cancelar nada: hacía falta para encadenar registros al probar, y también le sirve a
+   quien quiere volver al formulario.
+3. «Ya estoy en la lista de espera» deja de ser un panel desplegable y pasa a pantalla propia
+   (`/q/{code}/mi-turno`) con retorno al registro. Contradice la letra de 09 § 2.5 —«no es una ruta
+   nueva»— y por eso queda recogido en la enmienda § 2.7.
+4. El bloqueo por teléfono duraba todo el día de servicio. Pasa a durar lo que dura la espera: un turno
+   `called` deja de bloquear al vencer sus 10 minutos, y uno `waiting` al pasar `waiting_ttl_minutes`
+   (columna nueva, 120 por defecto). El alta lo caduca (`expired`, evento con
+   `reason = "stale_on_rejoin"`) y crea el nuevo. Mientras el turno sigue vivo, el 409 se mantiene y la
+   pantalla ofrece dos salidas: volver al turno o registrarse de nuevo cancelando el anterior.
+
+**Resultado de la revisión**
+
+- Backend: `waiting_ttl_minutes` en `locations`, `is_stale`/`release_if_stale` en el dominio, `expire`
+  admitido también desde `called` y eventos de transición con datos. Después de la revisión final, la
+  caducidad anterior, su evento, el turno reemplazante y `joined` comparten transacción: un fallo conserva
+  el turno anterior. Se añadieron pruebas de rollback y dos reemplazos simultáneos.
+- Frontend: `HomePage` reescrita, `AdminPage`, `RecoverPage`, `AlreadyInQueueNotice`, `useLocationInfo`
+  y la «×» del turno. Validado en navegador: las dos salidas del aviso, el reemplazo real del turno
+  anterior y el retorno entre registro y recuperación.
+- Documentación: enmienda 09 § 2.7, deudas 11 y 12, contrato de API, README de raíz y de la web.
+  El modelo 04 y el DDL MySQL se actualizaron con la columna y con la clasificación de `expired` según
+  exista `called_at`. La base MySQL local existente se migró sin borrar datos: sus tres locales quedaron
+  con `waiting_ttl_minutes = 120`. Validación final: 51 tests en SQLite y los mismos 51 en MySQL 8.4;
+  incluye rollback total ante fallo y carrera de dos reemplazos simultáneos.
+
+**Límite declarado**
+
+«Registrarme de nuevo» son dos llamadas (`lookup` → `cancel` → alta) porque no existe un alta que
+reemplace en una transacción. Si la segunda falla, esa persona se queda sin turno. Queda como deuda 11,
+no como detalle de implementación.
+
+**Segunda revisión del frontend (mismo día)**
+
+1. Entrar a la lista de espera no es una acción de administración: la hace el comensal al escanear el
+   QR, y es justo lo que el piloto tiene que enseñar. El selector de local sale de `/admin` y pasa a
+   `/` como atajo de la prueba —«elige un local y entra como si hubieras escaneado su QR»—; `/admin`
+   se queda solo con la tablet del anfitrión.
+2. El atajo comprueba cada código contra la API: un local cerrado o sin sembrar aparece como «no
+   disponible» en lugar de llevar a una pantalla muerta. Es lo único del frontend que asume el
+   contenido del seed, y está aislado en `lib/demo.ts` para poder quitarlo de una pieza.
+3. Los locales del seed pasan a ser los del enunciado: La Terraza Azul y Cuatro Vientos en Lima, Casa
+   Mediterránea en Santiago (antes «El Patio de Lima» y «La Casa de Santiago», que no salían de ningún
+   lado). El seed ahora también actualiza nombre, país y zona de un local que ya existe, para que
+   renombrar no obligue a borrar la base. Una base sembrada antes conserva la fila `patio-lima`, que
+   ya no aparece en ninguna pantalla; borrar `mesa247.db` la deja limpia.
+4. Efecto colateral verificado: con el local de Santiago el prefijo del formulario pasa a +56, que es
+   el camino que ejercita la normalización por región del local.
+
+51 tests en verde tras renombrar el código del segundo local en los tests de aislamiento.
+5. Corrección de la entrada: decía «vuelve a escanear el QR» para recuperar el turno. Es un error de
+   producto, no de redacción — el QR está fijo en la puerta y esa frase manda de vuelta al local justo
+   a quien el producto promete no hacer volver (07 § 3.1 P3). El atajo pasa a ofrecer las dos puertas
+   que abre ese QR, «Unirme a la lista» y «Ya estoy en la lista», y el texto ya no manda a la puerta.
