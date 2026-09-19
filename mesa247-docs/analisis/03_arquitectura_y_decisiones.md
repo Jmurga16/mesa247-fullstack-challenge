@@ -91,7 +91,7 @@ Aquí va el mapa y el porqué de cada regla.
 | POST | /api/host/tickets/{id}/leave | anfitrión | se fue (avisó en persona) | **solo desde "en espera"**; cuenta como "se fue sin sentarse" |
 | POST | /api/host/tickets/{id}/remove | anfitrión | borrar por error o duplicado | desde "en espera" o "llamado"; no cuenta en el reporte |
 | POST | /api/host/tickets/{id}/recall · /undo-call | anfitrión | re-llamar / deshacer llamado | fase 2 |
-| GET | /api/host/report?date= | anfitrión/gerente | reporte del día | fase 2 |
+| GET | /api/host/report?date= | anfitrión/gerente | reporte del día | **implementado** (09 § 2.8); sin `date`, el día en curso |
 | GET/POST | /webhooks/whatsapp | Meta | verificación y eventos (botones, estados) | firma X-Hub-Signature-256, idempotente; fase 2 |
 | POST | /internal/close-day | Scheduler | cierre por zona horaria | IAM; fase 2 |
 | GET | /healthz · /readyz | monitoreo | vida · base de datos | |

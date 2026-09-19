@@ -51,7 +51,7 @@ Si no entran, van a la nota con su estimación. **No se empiezan si algo de §2.
 ### 2.3 FUERA — no se escribe ni una línea
 
 WhatsApp y SMS reales · webhook de Meta · outbox y Cloud Tasks · cierre del día automático ·
-reporte y correo · arrastrar para reordenar · cliente frecuente · re-llamar y deshacer llamado ·
+correo del reporte · arrastrar para reordenar · cliente frecuente · re-llamar y deshacer llamado ·
 pausar la lista · panel de administración · login por persona · rate limiting · Alembic ·
 servir el build de React desde FastAPI · Docker de la API · CI/CD · i18n · asignación de mesas.
 
@@ -140,9 +140,20 @@ Cuatro Vientos en Lima, Casa Mediterránea en Santiago— con las dos puertas qu
 volver al turno con el teléfono. La pantalla no manda a nadie a escanear otra vez: el QR está fijo en
 la puerta, y decirle a quien ya espera que vuelva allí es el problema que el producto resuelve. Existe porque en
 una demo no hay cámara ni papel pegado en la puerta, y porque lo que el piloto tiene que enseñar es
-cómo llega el comensal a la lista. Comprueba cada código contra la API: un local sin sembrar o cerrado
-sale como «no disponible» en vez de llevar a una pantalla muerta. Es lo único del frontend que asume
-qué hay en el seed, y vive en un archivo aparte (`lib/demo.ts`) para que se borre de una pieza.
+cómo llega el comensal a la lista. La lista de locales la da la API (`GET /api/demo/locations`, solo
+los activos), así que el selector no ofrece puertas muertas y el frontend ya no asume qué hay en el
+seed. Vive en un archivo aparte (`lib/demo.ts`) para que se borre de una pieza.
+
+**El atajo de la tablet.** Mismo problema por el otro lado: la tablet se empareja una vez con el enlace
+de su local, y quien prueba la aplicación no tiene por qué copiar un token de la consola ni saber qué
+es. `/admin` lista los locales y abre la tablet de cualquiera con un clic; elegir otro local cambia de
+tablet, que es lo que hace falta para enseñar dos colas desde un mismo equipo. Por detrás,
+`POST /api/demo/locations/{code}/tablet` **emite** una sesión (`Tablet demo (web)`) y revoca la anterior
+de ese local; la que imprime el seed no se toca, y el token sigue siendo opaco y revocable como
+cualquier otro. Es una fábrica de credenciales sin autenticación, así que va detrás de `DEMO_MODE`,
+encendido por defecto para que el clon limpio funcione y apagado en cualquier despliegue real, donde
+esas rutas responden 404 y la tablet vuelve a abrirse solo con su enlace. No es el panel de
+administración de § 2.3 —no administra nada— ni el emparejamiento de producción, que sigue fuera.
 
 **La regla de la ventana, exacta.** Un turno deja de bloquear su teléfono cuando:
 
@@ -166,6 +177,38 @@ Mientras el turno sigue vivo, el 409 se mantiene: dos turnos activos con el mism
   `replace` en el alta y queda anotada en § 9 punto 11.
 - **Lo que cuesta de verdad:** quien se registra de nuevo **pierde su puesto** y vuelve al final de la
   cola. La pantalla lo dice antes de confirmar, no después.
+
+---
+
+## 2.8 Enmienda del 19/09/2026 — el reporte del día entra al corte
+
+Solicitud del autor al revisar el punto 5 del enunciado contra lo implementado: la pantalla del
+reporte no estaba y no había ni un botón. Cambia § 2.3, así que queda aquí y no en "Deuda conocida".
+
+| Antes decía | Ahora | Por qué |
+|---|---|---|
+| § 2.3: «reporte y correo» fuera, ni una línea | **El reporte entra**: `GET /api/host/report?date=` y la pantalla `/host/reporte`. **El correo del cierre sigue fuera** | es el punto 5 del enunciado y las definiciones ya estaban escritas en 04 § 6: lo que faltaba era conectarlas. El correo depende del cierre del día automático, que sigue sin existir (§ 9 punto 1) |
+| 03 § 3: `GET /api/host/report?date=` era "fase 2" | **implementado** | idem |
+
+**Lo que el reporte dice y el mockup del enunciado no.** Las tres son las advertencias de 04 § 6, y
+están en pantalla, no solo en la nota:
+
+1. **Son grupos, no personas.** «Se fueron sin sentarse 31» son 31 grupos. La respuesta trae
+   `joined_guests` y `seated_guests` para poder decir las dos cosas, y la pantalla lo aclara debajo
+   de los números. Decidir cuál se reporta antes del piloto sigue pendiente: cambiar la definición
+   a mitad de la comparación la invalida.
+2. **Mientras haya turnos sin resolver, el día no ha cerrado.** El campo `pending` los cuenta y la
+   pantalla avisa de que la suma todavía no cuadra. El invariante del enunciado
+   —`se unieron = se sentaron + se fueron + no vinieron`— solo se cumple con `pending = 0`; lo que se
+   cumple siempre es la misma igualdad con `pending` dentro, y eso es lo que prueba el test.
+3. **El cierre administrativo se separa del desenlace confirmado.** `expired` va en su propio campo:
+   no es un hecho que observó una persona, es «nadie lo resolvió». Mucho `expired` es un problema de
+   uso de la tablet, no de comensales, y fundirlo con el resto oculta justo eso.
+
+**Lo que no cambia.** No hay cierre del día automático ni correo, así que el reporte se lee en la
+tablet y se actualiza cada 30 s; `removed` sigue sin contar; y `expired` sigue contando como
+abandono o como «no vino» según tenga `called_at` (§ 2.7). El parámetro `date` permite mirar un día
+anterior sin más: un día sin turnos devuelve ceros, no 404.
 
 ---
 
@@ -307,6 +350,20 @@ GET  /api/host/queue
 }
 rows = status IN (waiting, called) AND service_date = <dia de servicio actual>, ORDER BY sort_key, id
 
+GET  /api/host/report?date=2026-09-18      # sin date, el dia de servicio en curso
+200 {
+  "location": {"name","timezone"}, "service_date": "2026-09-18",
+  "joined": 142, "seated": 97,
+  "left_before_seating": 31,        # cancelled/expired sin called_at
+  "no_show": 14,                    # no_show + cancelled/expired con called_at
+  "pending": 0,                     # waiting + called aun abiertos: > 0 = el dia no cerro
+  "expired": 2,                     # cierre administrativo, no desenlace confirmado
+  "joined_guests": 486, "seated_guests": 331,
+  "avg_wait_min": 34,               # null si no hubo sentados - "sin datos" != 0
+  "server_now": "..."
+}
+joined = seated + left_before_seating + no_show + pending, siempre. removed no cuenta.
+
 POST /api/host/tickets                      [opcional 1]
 POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
    -> 200 {row}   -   409 invalid_transition   -   404 (otro local / no existe)   -   401 sin token
@@ -322,6 +379,8 @@ POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
   "es aproximado: depende de las mesas que se vayan liberando".
 - `avg_wait_min` = promedio de `seated_at − joined_at` de los sentados de hoy, calculado **en Python**
   (`TIMESTAMPDIFF` no existe en SQLite). `null` si no hay ninguno.
+- **Reporte del día** = definiciones de 04 § 6, calculadas **en Python** sobre los turnos del día
+  (unas 200 por local): `TIMESTAMPDIFF` no existe en SQLite, y la agregación en SQL no era portable.
 - `service_date` = fecha local de `(instante en la zona del local − day_cutoff_hour horas)`.
 - `overdue` = `status == 'called' and server_now > called_at + call_grace_minutes`.
 
@@ -489,4 +548,5 @@ Nada más. Lo que falte va a la nota con su estimación.
     correcta es un `replace` en el alta, que cancela y crea en la misma transacción (≈ 0,2 d).
 12. **La ventana de espera no cierra turnos por sí sola.** Un turno vencido solo caduca si esa misma
     persona vuelve a anotarse; si no, sigue abierto hasta el cierre del día, que tampoco existe
-    (punto 1). Para el reporte, ambos son el mismo agujero.
+    (punto 1). Para el reporte, ambos son el mismo agujero: es `pending`, y por eso se publica
+    (§ 2.8). Sin cierre del día, el reporte de un día pasado puede no cuadrar nunca.
