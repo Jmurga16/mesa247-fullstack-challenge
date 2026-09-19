@@ -323,3 +323,26 @@ regenerado; READMEs de API y web.
 
 Antes de escribir código se advirtió que el reporte era una exclusión deliberada del corte y se ofreció
 dejarlo fuera reforzando dónde se explica. El autor eligió implementarlo completo.
+
+## 2026-09-19 — Pruebas funcionales de backend y frontend integrados
+
+**Parte del proyecto:** backend y frontend.
+
+**Solicitud:** «Haz las pruebas funcionales del proyecto integrado back y front».
+
+**Decisión y resultado:** ejecutar las suites existentes y probar Chromium contra Vite y FastAPI reales,
+con puertos y SQLite temporales para conservar los datos y servidores abiertos. Backend: 60 tests
+aprobados en SQLite y los mismos 60 en MySQL; build de frontend aprobado. Navegador: 12 escenarios
+aprobados y 5 fallidos. Copia limpia con dependencias nuevas y cachés disponibles: servidores listos
+en 66,03 s; recorrido completo hasta sentar y detener el polling en 109,83 s.
+
+Los fallos reproducidos son: pantalla de reporte en blanco al revocar la sesión; polling detenido
+tras caída del backend; pérdida de request_id al recargar un envío pendiente; cuenta regresiva
+congelada sin respuestas nuevas; y falta de aviso de red en la primera carga del turno. Se documentan
+sin modificar el producto ni cambiar el alcance. La pérdida del request_id no duplica turnos:
+la recuperación manual sigue funcionando; se contrasta con la promesa de recarga de 09 § 8.6.
+
+**Archivos:** runner y dependencias en `mesa247-web/tests/`, informe
+`auditoria/04_pruebas_funcionales_integradas.md`, enlaces en READMEs y exclusión de `.artifacts/`.
+El informe incluye reproducción, causas y límites de las pruebas; las capturas y resultados quedan
+como evidencia local.
