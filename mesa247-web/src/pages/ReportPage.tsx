@@ -34,6 +34,16 @@ export default function ReportPage() {
     key: `${token}:${day}`,
   })
 
+  const report = polling.data
+
+  // El día de servicio en curso lo dice el servidor, no el reloj de la tablet:
+  // se recuerda para que elegir un día pasado no impida volver a hoy.
+  useEffect(() => {
+    if (report && !day) setToday(report.service_date)
+  }, [report, day])
+
+  // Va después de los hooks: perder la sesión con el reporte abierto cambiaba el
+  // número de hooks ejecutados y React tumbaba la pantalla.
   if (!token || polling.error?.status === 401) {
     return (
       <main className="screen screen-wide">
@@ -47,14 +57,6 @@ export default function ReportPage() {
       </main>
     )
   }
-
-  const report = polling.data
-
-  // El día de servicio en curso lo dice el servidor, no el reloj de la tablet:
-  // se recuerda para que elegir un día pasado no impida volver a hoy.
-  useEffect(() => {
-    if (report && !day) setToday(report.service_date)
-  }, [report, day])
 
   const closed = report !== null && report.pending === 0
   const lines: Line[] = report ? [
