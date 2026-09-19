@@ -641,6 +641,103 @@
         ]
       }
     },
+    "/api/host/report": {
+      "get": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Report",
+        "operationId": "report_api_host_report_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Día de servicio; por defecto, el de hoy",
+              "title": "Date"
+            },
+            "description": "Día de servicio; por defecto, el de hoy"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/host/tickets/{ticket_id}/call": {
       "post": {
         "tags": [
@@ -1075,10 +1172,200 @@
           }
         }
       }
+    },
+    "/api/demo/locations": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Demo Locations",
+        "description": "Los locales que existen de verdad en esta base, para no ofrecer puertas muertas.",
+        "operationId": "demo_locations_api_demo_locations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DemoLocation"
+                  },
+                  "type": "array",
+                  "title": "Response Demo Locations Api Demo Locations Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo/locations/{code}/tablet": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Open Demo Tablet",
+        "description": "Abre la tablet de un local sin pasar por el token impreso en consola: quien\nprueba la aplicación no tiene por qué manejar credenciales. Cada apertura\nrevoca la anterior de ese local, de modo que solo hay una sesión de demo viva\npor local y el token sigue siendo opaco y revocable como cualquier otro.",
+        "operationId": "open_demo_tablet_api_demo_locations__code__tablet_post",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoTablet"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "DemoLocation": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "timezone"
+        ],
+        "title": "DemoLocation"
+      },
+      "DemoTablet": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "location_name": {
+            "type": "string",
+            "title": "Location Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "location_name"
+        ],
+        "title": "DemoTablet"
+      },
       "ErrorResponse": {
         "properties": {
           "error": {
@@ -1176,6 +1463,82 @@
           "rows"
         ],
         "title": "HostQueue"
+      },
+      "HostReport": {
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/HostLocation"
+          },
+          "service_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Service Date"
+          },
+          "joined": {
+            "type": "integer",
+            "title": "Joined"
+          },
+          "seated": {
+            "type": "integer",
+            "title": "Seated"
+          },
+          "left_before_seating": {
+            "type": "integer",
+            "title": "Left Before Seating"
+          },
+          "no_show": {
+            "type": "integer",
+            "title": "No Show"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "expired": {
+            "type": "integer",
+            "title": "Expired"
+          },
+          "joined_guests": {
+            "type": "integer",
+            "title": "Joined Guests"
+          },
+          "seated_guests": {
+            "type": "integer",
+            "title": "Seated Guests"
+          },
+          "avg_wait_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Wait Min"
+          },
+          "server_now": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "location",
+          "service_date",
+          "joined",
+          "seated",
+          "left_before_seating",
+          "no_show",
+          "pending",
+          "expired",
+          "joined_guests",
+          "seated_guests",
+          "avg_wait_min",
+          "server_now"
+        ],
+        "title": "HostReport"
       },
       "HostRow": {
         "properties": {

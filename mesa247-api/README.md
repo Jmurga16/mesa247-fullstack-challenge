@@ -85,6 +85,7 @@ controlada antes de desplegar el código.
 5. `GET /api/host/queue` devuelve el id; úsalo en `POST /api/host/tickets/{ticket_id}/call`.
 6. `GET /api/public/tickets/{token}` muestra called y deadline_at; un segundo llamado no genera otro aviso.
 7. `POST /api/public/locations/terraza-lima/lookup` con `{"phone":"987654321"}` recupera el turno activo.
+8. `GET /api/host/report` resume el día del local; con `?date=AAAA-MM-DD` mira un día anterior.
 
 El [contrato documentado](../mesa247-docs/api/README.md) precisa estados, errores y concurrencia.
 
@@ -129,6 +130,7 @@ Copia `.env.example` a `.env` si necesitas persistir configuración; el entorno 
 | DATABASE_SSL_CA | vacío | CA para MySQL remoto; verifica hostname |
 | CREATE_TABLES | true | create_all al arrancar; no migra tablas existentes |
 | WEB_BASE_URL | http://localhost:5173 | base de links del seed |
+| DEMO_MODE | true | atajos de la demo en `/api/demo/*`; **false** en cualquier despliegue real |
 | MYSQL_PORT | 3307 | puerto Compose |
 | MYSQL_PASSWORD | mesa247-local-only | usuario local; ajustar también DATABASE_URL |
 | MYSQL_ROOT_PASSWORD | root-local-only | root local para Compose/tests |
@@ -139,6 +141,14 @@ ni validado una cuenta Aiven. SQLite sobre disco efímero no conserva datos entr
 La creación/migración de tablas y el aprovisionamiento de dispositivos deben ejecutarse como tareas
 controladas antes de escalar; CREATE_TABLES=false desactiva la creación al arrancar. El seed y sus links
 son para demo, no el emparejamiento de producción.
+
+**`DEMO_MODE`.** Viene encendido para que la prueba funcione desde un clon limpio sin repartir tokens:
+`GET /api/demo/locations` lista los locales activos y `POST /api/demo/locations/{code}/tablet` **emite**
+una sesión de tablet y la devuelve en claro, revocando la anterior de ese local (etiqueta
+`Tablet demo (web)`; la que imprime el seed no se toca). Es una fábrica de credenciales sin
+autenticación: en un despliegue real va `DEMO_MODE=false`, y entonces esas rutas responden 404 y la
+tablet se abre solo con su enlace. El emparejamiento de producción está fuera de alcance
+(09 § 2.3, «login por persona»).
 
 ## Estructura
 
