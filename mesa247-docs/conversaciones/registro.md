@@ -346,3 +346,23 @@ la recuperación manual sigue funcionando; se contrasta con la promesa de recarg
 `auditoria/04_pruebas_funcionales_integradas.md`, enlaces en READMEs y exclusión de `.artifacts/`.
 El informe incluye reproducción, causas y límites de las pruebas; las capturas y resultados quedan
 como evidencia local.
+
+**Solicitud posterior, mismo día:** «Revisamos los errores de las pruebas funcionales y fixeamos, y
+documentamos lo nuevo».
+
+**Decisión y resultado:** corregir los cinco fallos, todos de frontend, sin tocar backend, contrato ni
+alcance, y sin relajar ninguna expectativa de la batería. F01: el efecto que guarda el día pasa delante
+del retorno por 401, que cambiaba el número de hooks. F02: `usePolling` deja de tratar toda `ApiError`
+como definitiva; un 5xx, 408 o 429 es un corte y se reintenta con el backoff que ya existía, mientras
+que 401 y 404 siguen deteniendo el ciclo, y la pantalla del turno muestra el error cuando ya hay dato.
+F03: se persiste el envío pendiente —identificador, huella de los datos del formulario y hora—, no una
+llave por dispositivo; se borra al abrir el turno y caduca a los 30 minutos, para cumplir 09 § 8.6 sin
+reponer el defecto anterior, en el que el segundo comensal de una misma pantalla heredaba la llave del
+primero. F04: el desfase con el servidor se mide al recibir el dato en lugar de en cada render, que
+devolvía siempre `server_now` y congelaba la cuenta. F05: la pantalla de carga del turno también
+muestra el aviso de desconexión. Verificación: 17 de 17 escenarios de navegador, 60 tests de backend en
+SQLite y los mismos 60 en MySQL, y `npm run build`.
+
+**Archivos:** `hooks/usePolling.ts`, `lib/format.ts`, `lib/storage.ts`, `pages/JoinPage.tsx`,
+`pages/ReportPage.tsx` y `pages/TicketPage.tsx`; informe funcional reescrito con causa y corrección de
+cada fallo, y READMEs de web y de `tests/` al día.
