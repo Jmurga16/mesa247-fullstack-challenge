@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import DemoSwitch from './components/DemoSwitch'
 import HomePage from './pages/HomePage'
 import JoinPage from './pages/JoinPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -21,15 +22,18 @@ function Loading() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/q/:code" element={<JoinPage />} />
-      <Route path="/q/:code/mi-turno" element={<RecoverPage />} />
-      <Route path="/t/:token" element={<TicketPage />} />
-      <Route path="/admin" element={<Suspense fallback={<Loading />}><AdminPage /></Suspense>} />
-      <Route path="/host" element={<Suspense fallback={<Loading />}><HostPage /></Suspense>} />
-      <Route path="/host/reporte" element={<Suspense fallback={<Loading />}><ReportPage /></Suspense>} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/q/:code" element={<JoinPage />} />
+        <Route path="/q/:code/mi-turno" element={<RecoverPage />} />
+        <Route path="/t/:token" element={<TicketPage />} />
+        <Route path="/admin" element={<Suspense fallback={<Loading />}><AdminPage /></Suspense>} />
+        <Route path="/host" element={<Suspense fallback={<Loading />}><HostPage /></Suspense>} />
+        <Route path="/host/reporte" element={<Suspense fallback={<Loading />}><ReportPage /></Suspense>} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+      <DemoSwitch />
+    </>
   )
 }

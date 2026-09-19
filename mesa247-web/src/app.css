@@ -798,3 +798,63 @@ input[aria-invalid='true'] {
   gap: 16px;
   align-items: center;
 }
+
+/* Conmutador de la demo: andamiaje, no producto. Flota en la esquina para que las
+   dos mitades se prueben en una sola pantalla, y se aparta del contenido con el
+   hueco que reservan `.screen-narrow` y `.screen-wide`. */
+.demo-switch {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px dashed var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 0.8125rem;
+}
+
+.demo-switch-tag {
+  padding: 0 6px 0 8px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.6875rem;
+}
+
+.demo-switch-side {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.demo-switch-side:hover {
+  background: var(--surface-2);
+}
+
+.demo-switch-side.is-current {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.demo-switch-side:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Hueco para que el conmutador no se siente encima del primer título. */
+.screen-narrow {
+  padding-top: 64px;
+}
+
+.screen-wide {
+  padding-top: 68px;
+}
