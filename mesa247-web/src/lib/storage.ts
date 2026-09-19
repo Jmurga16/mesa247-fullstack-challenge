@@ -3,6 +3,8 @@
 
 export const storageKeys = {
   ticketToken: (code: string) => `mesa247:ticket:${code}`,
+  /** Envío de alta a medias: solo vive entre el intento y el turno abierto. */
+  pendingJoin: (code: string) => `mesa247:join-pendiente:${code}`,
   lastCode: 'mesa247:last-code',
   hostToken: 'mesa247:host-token',
 }

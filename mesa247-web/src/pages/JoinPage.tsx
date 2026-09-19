@@ -7,18 +7,40 @@ import PhoneField from '../components/PhoneField'
 import { useLocationInfo } from '../hooks/useLocationInfo'
 import { ApiError, OfflineError, api } from '../lib/api'
 import { PHONE_HINT, PHONE_INVALID, looksLikePhone } from '../lib/phone'
-import { readLocal, storageKeys, uuid, writeLocal } from '../lib/storage'
+import { readLocal, removeLocal, storageKeys, uuid, writeLocal } from '../lib/storage'
 import type { JoinBody } from '../lib/api'
 import type { TicketPublic } from '../lib/types'
 import { isTerminal } from '../lib/types'
 
 const OFFLINE_MESSAGE = 'Sin conexión. Revisa tus datos e inténtalo otra vez.'
 
+/** Un envío a medias deja de serlo pasado un rato: después es un alta nueva. */
+const PENDING_TTL_MS = 30 * 60_000
+
 type Payload = Omit<JoinBody, 'request_id'>
+
+/** El envío pendiente: su llave de idempotencia atada a los datos que la crearon. */
+type Pending = { key: string; id: string; at: number }
 
 /** Dos altas distintas no pueden compartir llave de idempotencia. */
 function fingerprint(payload: Payload): string {
   return `${payload.name.toLowerCase()}|${payload.phone}|${payload.party_size}`
+}
+
+function readPending(code: string): Pending | null {
+  const raw = readLocal(storageKeys.pendingJoin(code))
+  if (!raw) return null
+  try {
+    const pending = JSON.parse(raw) as Partial<Pending>
+    const complete =
+      typeof pending.key === 'string' &&
+      typeof pending.id === 'string' &&
+      typeof pending.at === 'number'
+    if (!complete || Date.now() - (pending.at as number) > PENDING_TTL_MS) return null
+    return pending as Pending
+  } catch {
+    return null
+  }
 }
 
 export default function JoinPage() {
@@ -40,18 +62,26 @@ export default function JoinPage() {
   const [confirmingRestart, setConfirmingRestart] = useState(false)
 
   /**
-   * El `request_id` identifica un envío, no un dispositivo: vive en memoria y
-   * atado a los datos del formulario. Guardarlo por local hacía que el segundo
-   * comensal de la misma pantalla reenviara la llave del primero, y el servidor
-   * respondía —con razón— el turno ya creado en lugar de crear el suyo.
+   * El `request_id` identifica un envío, no un dispositivo, y va atado a los datos
+   * del formulario: guardarlo por local hacía que el segundo comensal de la misma
+   * pantalla reenviara la llave del primero, y el servidor respondía —con razón— el
+   * turno ya creado en lugar de crear el suyo. Se guarda solo mientras el envío está
+   * pendiente, para que recargar y reintentar recupere el mismo turno (09 § 8.6);
+   * al abrir el turno se borra.
    */
-  const request = useRef<{ key: string; id: string } | null>(null)
+  const request = useRef<Pending | null>(null)
 
   const requestIdFor = (payload: Payload, rotate = false): string => {
     const key = fingerprint(payload)
-    if (!rotate && request.current?.key === key) return request.current.id
-    request.current = { key, id: uuid() }
-    return request.current.id
+    const pending = request.current ?? readPending(code)
+    if (!rotate && pending?.key === key) {
+      request.current = pending
+      return pending.id
+    }
+    const next: Pending = { key, id: uuid(), at: Date.now() }
+    request.current = next
+    writeLocal(storageKeys.pendingJoin(code), JSON.stringify(next))
+    return next.id
   }
 
   const savedToken = readLocal(storageKeys.ticketToken(code))
@@ -59,6 +89,7 @@ export default function JoinPage() {
   const goToTicket = (ticket: TicketPublic) => {
     // El envío terminó: la llave no debe sobrevivir a su propio turno.
     request.current = null
+    removeLocal(storageKeys.pendingJoin(code))
     writeLocal(storageKeys.ticketToken(code), ticket.token)
     writeLocal(storageKeys.lastCode, code)
     navigate(`/t/${ticket.token}`, { replace: true })
