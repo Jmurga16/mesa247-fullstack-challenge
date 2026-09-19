@@ -49,6 +49,7 @@ export function usePolling<T>(
   useEffect(() => {
     setData(null)
     setError(null)
+    setOffline(false)
     setLoading(true)
   }, [key])
 
