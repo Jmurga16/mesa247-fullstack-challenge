@@ -20,8 +20,8 @@ mesa247-api/.venv/bin/python -m playwright install chromium
 mesa247-api/.venv/bin/python mesa247-web/tests/functional.py
 ```
 
-La ejecución dura aproximadamente cuatro minutos. Devuelve código 1 si encuentra fallos y continúa
-con los demás escenarios. El JSON de resultados, los logs y las capturas se guardan en
+La ejecución dura aproximadamente tres minutos y medio. Devuelve código 1 si encuentra fallos y
+continúa con los demás escenarios. El JSON de resultados, los logs y las capturas se guardan en
 `.artifacts/functional/`, excluido de Git. Los datos son sintéticos; los logs pueden contener tokens
 de esos turnos temporales. Una nueva ejecución sobrescribe resultados y capturas del mismo nombre.
 
@@ -39,6 +39,6 @@ el backoff máximo documentado.
 El doble llamado usa dos tablets con la misma sesión y una fila aún sin refrescar. La simultaneidad
 de dos conexiones a la base la comprueban los tests de concurrencia del backend.
 
-Los resultados y los fallos abiertos del 19/09/2026 están en el
-[informe funcional](../../mesa247-docs/auditoria/04_pruebas_funcionales_integradas.md).
-La suite conserva las expectativas del producto: no convierte los fallos conocidos en tests aprobados.
+Los resultados del 19/09/2026 y los cinco fallos que esta batería destapó están en el
+[informe funcional](../../mesa247-docs/auditoria/04_pruebas_funcionales_integradas.md), ya corregidos.
+La suite conserva las expectativas del producto: ningún escenario se relajó para que pasara.

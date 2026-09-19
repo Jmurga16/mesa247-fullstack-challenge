@@ -64,13 +64,13 @@ src/
 
 ## Decisiones que se ven en el código
 
-- **El reintento no duplica el turno.** `JoinPage` genera un `request_id` y lo guarda en `localStorage` antes del primer envío: reenviar el formulario devuelve el mismo turno. Si ese identificador quedó apuntando a un turno ya cerrado, se rota y se vuelve a enviar.
+- **El reintento no duplica el turno.** `JoinPage` genera un `request_id` por envío y lo guarda en `localStorage` junto a los datos que lo crearon: reenviar el formulario —incluso después de recargar— devuelve el mismo turno. Se borra al abrir el turno y caduca a los 30 minutos, así que no es una llave del dispositivo que el siguiente comensal pueda heredar. Si el identificador quedó apuntando a un turno ya cerrado, se rota y se vuelve a enviar.
 - **Perder el link tiene salida.** «Ya estoy en la lista de espera» es una pantalla propia que pide el teléfono y devuelve el turno activo ([09 § 2.5 y § 2.7](../mesa247-docs/analisis/09_alcance_y_plan_de_implementacion.md)).
 - **Volver a registrarse no es un callejón sin salida.** Si el teléfono ya está esperando, el alta muestra dos salidas: volver al turno que ya existe, o empezar uno nuevo — avisando antes de confirmar que el nuevo cancela el anterior y deja al final de la cola. Son dos llamadas (`lookup` → `cancel` → alta), no una transacción: está anotado en 09 § 9.
 - **Un turno vencido no bloquea el teléfono.** Pasados los 10 minutos del llamado, volver a anotarse crea un turno nuevo sin pedir permiso a nadie; la regla vive en el backend (09 § 2.7).
-- **Sin conexión no es un error en pantalla.** `usePolling` conserva el último dato, muestra «sin conexión» y reintenta con backoff hasta 60 s. Pausa con la pestaña oculta y reanuda al volver o al recuperar la red.
+- **Sin conexión no es un error en pantalla.** `usePolling` conserva el último dato, muestra «sin conexión» y reintenta con backoff hasta 60 s. Que la API esté caída cuenta igual que quedarse sin red: un 5xx se reintenta, y solo lo que no cambia por insistir (401, 404) detiene el ciclo. Pausa con la pestaña oculta y reanuda al volver o al recuperar la red.
 - **Se deja de consultar al llegar a un estado final.** Batería y datos del comensal.
-- **La cuenta regresiva usa `server_now`,** no el reloj del celular.
+- **La cuenta regresiva usa `server_now`,** no el reloj del celular: el desfase se mide al recibir cada dato y se conserva, para que el contador avance solo aunque no lleguen respuestas nuevas.
 - **La pantalla del turno tiene salida.** La «×» vuelve a la lista del local sin cancelar nada; «Ya no voy» sigue siendo una acción aparte y con confirmación.
 - **El número solo se anima cuando baja.** Que suba se lee como que alguien pasó por delante ([07 § 4](../mesa247-docs/analisis/07_disenador_preguntas_y_devolucion.md)).
 - **El reporte dice lo que el mockup del enunciado calla.** Los conteos son de **grupos** y la pantalla lo
@@ -95,7 +95,7 @@ Para apuntar a otro backend, copia `.env.example` a `.env` y ajusta `API_PROXY_T
 
 Las [pruebas de navegador](tests/README.md) ejecutan los flujos de comensal y anfitrión contra una API
 real y datos temporales. Incluyen recuperación del turno, reporte, dos tablets y cortes de conexión.
-Resultados de la ejecución y fallos abiertos: [informe del 19/09/2026](../mesa247-docs/auditoria/04_pruebas_funcionales_integradas.md).
+Resultados, fallos encontrados y su corrección: [informe del 19/09/2026](../mesa247-docs/auditoria/04_pruebas_funcionales_integradas.md).
 
 ## Fuera de esta versión
 
