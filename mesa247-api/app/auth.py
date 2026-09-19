@@ -16,7 +16,7 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def hash_token(raw: str) -> str:
-    # Opaque credential: only the digest is stored, never the token itself.
+    # Credencial opaca: se guarda solo el resumen, nunca el token.
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -33,7 +33,7 @@ def unauthorized():
 
 def get_host(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), session: Session = Depends(get_session),
              instant: datetime = Depends(now)) -> HostContext:
-    # The location comes from the token, never from the body or the query string.
+    # El local sale del token, nunca del cuerpo ni de la query.
     if credentials is None or not credentials.credentials.strip():
         raise unauthorized()
     token = credentials.credentials.strip()

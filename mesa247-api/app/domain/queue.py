@@ -13,7 +13,7 @@ from app.models import Location, Ticket, TicketEvent
 from app.schemas import HostReport, HostRow, JoinRequest, TicketPublic
 
 TERMINAL = {"seated", "cancelled", "no_show", "removed", "expired"}
-# action: allowed sources, target, event
+# acción: estados de origen permitidos, estado destino, evento
 TRANSITIONS = {
     "call": ({"waiting"}, "called", "called"),
     "seat": ({"waiting", "called"}, "seated", "seated"),
@@ -126,12 +126,13 @@ def apply_transition(session: Session, ticket: Ticket, action: str, actor: str, 
         values.update(called_at=instant, call_count=Ticket.call_count + 1)
     if target == "seated":
         values["seated_at"] = instant
-    # Compare the observed status, not all allowed sources: detects an intervening call.
+    # Se compara contra el estado observado, no contra todos los orígenes permitidos:
+    # así se detecta a otro anfitrión que haya actuado entre la lectura y el UPDATE.
     result = session.execute(update(Ticket).where(
         Ticket.id == ticket.id, Ticket.location_id == ticket.location_id,
         Ticket.status == observed).values(**values).execution_options(synchronize_session=False))
     if result.rowcount == 0:
-        session.rollback()  # discard snapshots before rereading, including on MySQL
+        session.rollback()  # descarta la instantánea antes de releer, también en MySQL
         session.refresh(ticket)
         if ticket.status in repeat:
             return ticket, False

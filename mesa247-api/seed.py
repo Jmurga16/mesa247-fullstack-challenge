@@ -52,9 +52,9 @@ if __name__ == "__main__":
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         for code, token in seed(session, args.rotate_tokens):
-            print(f"\n{code}\n  QR (frontend pendiente): {settings.web_base_url}/q/{code}")
+            print(f"\n{code}\n  QR: {settings.web_base_url}/q/{code}")
             if token:
-                print(f"  Tablet (frontend pendiente): {settings.web_base_url}/host?token={token}")
+                print(f"  Tablet: {settings.web_base_url}/host?token={token}")
                 print(f"  Bearer: {token}")
             else:
                 print("  Token existente: usa el guardado o ejecuta --rotate-tokens para reemplazarlo.")
