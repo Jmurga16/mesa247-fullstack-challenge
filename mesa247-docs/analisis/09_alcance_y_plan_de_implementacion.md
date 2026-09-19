@@ -27,18 +27,19 @@ llama al siguiente"). Todo lo demás de esta lista es elección, y cada elecció
 |---|---|---|
 | O1 | Unirse desde `/q/{code}` con nombre, teléfono y tamaño de grupo | es la entrada; sin esto no hay producto |
 | O2 | Alta segura ante reintentos: `request_id` del navegador; el mismo reintento devuelve el mismo turno | la puerta tiene mala señal; el doble toque es seguro que pasa |
-| O3 | Un turno activo por teléfono, local y día — **sin revelar el token a quien solo conoce el teléfono** | es lo "expuesto al público, pensado para el público" |
+| O3 | Un turno activo por teléfono, local y día, recuperable con el teléfono desde «Ya estoy en la lista de espera» (**enmienda § 2.5**) | evita el turno duplicado y da salida a quien perdió el link |
 | O4 | Página del turno `/t/{token}` con polling: grupos delante, tiempo aproximado, estado, «Ya no voy» | la promesa central al comensal |
 | O5 | Cola del anfitrión `/host` autenticada por token de dispositivo y aislada por local | núcleo operativo; un local no ve a otro |
 | O6 | Llamar / Sentar / No vino / Se fue, con transición atómica y segundo toque sin efecto | dos anfitriones un viernes |
 | O7 | `ticket_events` escrito en la misma transacción que el cambio de estado | lo que no se registra no se recupera |
 | O8 | Notificador falso: registra el aviso y el evento; si falla, el turno sigue llamado | el estado del negocio no depende de Meta |
 | O9 | Estados de red: "sin conexión, reintentando" conservando el último dato; nunca un error técnico en pantalla | el wifi de la puerta es malo |
-| O10 | Los 6 tests no negociables (§7) en verde | "tests de lo que se rompe" |
+| O10 | Los 7 tests no negociables (§7) en verde | "tests de lo que se rompe" |
 | O11 | README probado desde un clon limpio en ≤ 5 min | requisito explícito del encargo |
 | O12 | Seed de 3 locales (2 Lima, 1 Santiago) con links impresos en consola | para que lo levanten sin preguntarte nada |
+| O13 | «Ya estoy en la lista de espera»: consulta por teléfono que devuelve el turno activo del día con su token | cerrar la pestaña no puede dejar al comensal sin salida (07 § 3.1 P3) |
 
-### 2.2 OPCIONAL — solo si O1–O12 está cerrado y sobra tiempo, en este orden
+### 2.2 OPCIONAL — solo si O1–O13 está cerrado y sobra tiempo, en este orden
 
 1. **Alta manual en la tablet** (`POST /api/host/tickets`, formulario plegable). La más valiosa de las cuatro: es el argumento de adopción de toda la nota.
 2. **«Voy en camino»** (`POST .../on-my-way` + botón + marca en la tablet).
@@ -70,6 +71,32 @@ requisito en un prompt ni en la definición de listo.
 | ETA fuera del corte (recomendación de auditoría I2) | **Se queda**, etiquetado como aproximado y no calibrado | el encargo lo pide de forma explícita; quitarlo sería incumplir un requisito |
 | `active_key = "{loc}:{phone}"` | **`"{loc}:{service_date}:{phone}"`** | si no, el turno del viernes bloquea al mismo teléfono el sábado |
 | Cola = todos los `waiting`/`called` | **+ filtro por `service_date`** | si no, los pendientes de ayer aparecen hoy |
+
+### 2.5 Enmienda del 18/09/2026 — recuperar el turno con el teléfono
+
+Única decisión reabierta después del congelamiento, tomada **antes** de escribir código y al responder
+las tres preguntas al diseñador (07 § 3.1 P3). Queda aquí y no en "Deuda conocida" porque cambia el
+alcance obligatorio, no lo aplaza.
+
+| Antes decía | Ahora | Por qué |
+|---|---|---|
+| O3 y 08 § 4b: nunca revelar el token a quien solo conoce el teléfono; la recuperación la hace el anfitrión | **`POST /api/public/locations/{code}/lookup`**: con el teléfono se devuelve el turno activo del día **con su token**, y el comensal vuelve a su página | perder el link (cerrar la pestaña, incógnito, otro navegador) es un hecho diario; mandar a esa persona de vuelta a la puerta es justo el problema que el producto dice resolver |
+
+Lo que se acepta a cambio, dicho sin adornos: **el teléfono pasa a ser la credencial.** Quien conozca un
+número y el código del QR —que está pegado en la puerta y es público— puede abrir ese turno y cancelarlo.
+El riesgo asumido es que adivinar un móvil completo y válido de alguien que además está en la cola de ese
+local hoy no es un ataque realista; el costo de no tener salida sí es seguro y diario.
+
+Lo que cuesta en el corte: **≈ 15 min**. El endpoint reutiliza la consulta que ya existe para `active_key`,
+la pantalla es un enlace y un campo dentro de `JoinPage` —no una ruta nueva— y el test es el séptimo de
+§ 7.1. Sale del bloque 3 de § 8.4 y, si aprieta, se paga con los opcionales de § 2.2, que ya estaban fuera
+del "listo".
+
+Mitigación fuera del corte, no olvidada: **OTP** (código al teléfono, token solo contra el código). Es la
+versión segura de esto mismo, depende del canal real de WhatsApp o SMS y suma fricción en la puerta; queda
+en § 9 punto 10. Lo que sí entra gratis: normalizar a E.164 con la región del local antes de buscar,
+considerar solo `waiting`/`called` del `service_date` actual, y responder 404 sin decir nunca si ese
+teléfono existe.
 
 ---
 
@@ -148,9 +175,19 @@ body {"request_id": uuid4, "name": str(1..40, trim), "phone": str, "party_size":
 201 TicketPublic (con token)     <- alta nueva
 200 TicketPublic (con token)     <- mismo request_id: es un reintento, devuelvo lo mismo
 409 {"error":"already_in_queue",
-     "message":"Ya tienes un turno activo en este local. Abre el enlace que te dimos
-                o pidele al anfitrion que te ayude."}          <- SIN token
+     "message":"Ya tienes un turno activo en este local. Usa 'Ya estoy en la lista de
+                espera' para volver a el."}     <- SIN token; el token se recupera
+                                                   por /lookup, no por el alta
 422 validacion   -   404 local inexistente o inactivo
+
+POST /api/public/locations/{code}/lookup
+body {"phone": str}
+200 TicketPublic (con token)     <- espera activa de hoy en este local
+404 {"error":"not_found",
+     "message":"No encontramos una espera activa con ese numero en este local hoy.
+                Si acabas de anotarte revisa el numero; si no, vuelve a unirte."}
+422 validacion   -   404 local inexistente o inactivo
+Solo mira status IN (waiting, called) AND service_date = <dia de servicio actual>.
 
 GET  /api/public/tickets/{token}            -> 200 TicketPublic - 404
 POST /api/public/tickets/{token}/cancel     -> 200 TicketPublic - 409 - 404
@@ -235,24 +272,29 @@ POST /api/host/tickets/{id}/call | seat | no-show | leave | remove
 
 ## 7. Tests
 
-### 7.1 No negociables (estos seis no se cortan por nada)
+### 7.1 No negociables (estos siete no se cortan por nada)
 
 | # | Test | Qué se rompe sin él |
 |---|---|---|
-| 1 | `test_join_retry_same_request_id_returns_same_ticket` **y** `test_join_same_phone_other_request_id_returns_409_without_token` | señal mala → turnos duplicados; y un tercero que conoce el teléfono se queda con el turno ajeno |
+| 1 | `test_join_retry_same_request_id_returns_same_ticket` **y** `test_join_same_phone_other_request_id_returns_409_without_token` | señal mala → turnos duplicados; y el mismo teléfono con dos turnos activos rompe `active_key` y el reporte |
 | 2 | `test_call_twice_sends_one_notification` (2.º = 200 sin efecto) | dos anfitriones → dos WhatsApp cobrados |
 | 3 | `test_invalid_transitions_return_409` (sentar un cancelado, no-show de uno en espera, cancelar un sentado) | la cola se corrompe sola |
 | 4 | `test_host_cannot_touch_other_location` (token de A sobre turno de B → 404) | fuga entre locales |
 | 5 | `test_terminal_states_release_active_key` — **parametrizado** sobre seated/cancelled/no_show/removed | el teléfono queda bloqueado y no puede volver a la cola |
 | 6 | `test_phone_normalization` (`"987 654 321"`+PE → `+51987654321`; `"9 8765 4321"`+CL → `+56987654321`; basura → 422) | no hay a quién avisar, ni deduplicación |
+| 7 | `test_lookup_returns_active_ticket_of_today` **y** `test_lookup_404_when_none` (turno ya terminal → 404; turno de otro local → 404; turno de ayer → 404) | la única salida de quien perdió el link; y el endpoint que reparte tokens no puede filtrar turnos ajenos ni de ayer |
+
+El test 1 conserva su segundo caso (mismo teléfono y otro `request_id` al unirse → 409 **sin** token):
+sigue siendo la respuesta correcta del alta. Lo que cambió con la enmienda § 2.5 es su *razón*: ya no
+protege el turno —para eso ahora está `/lookup`—, evita el duplicado y empuja a la pantalla correcta.
 
 ### 7.2 Si alcanza (baratos, en este orden)
 
-7. `test_public_ticket_does_not_leak_data` (ni `phone` ni otros nombres en la respuesta; token inventado → 404).
-8. `test_notifier_failure_keeps_ticket_called` (+ evento `notification_failed`).
-9. `test_position_ignores_called_and_closed` **y empate**: dos altas con el mismo `sort_key` → posiciones distintas y estables.
-10. `test_service_date` — unitario, sin HTTP: sábado 00:30 Lima → viernes; el mismo instante en Santiago → sábado.
-11. Test integrado del camino feliz: unirse → aparece en la cola → llamar → el público ve `called`.
+8. `test_public_ticket_does_not_leak_data` (ni `phone` ni otros nombres en la respuesta; token inventado → 404).
+9. `test_notifier_failure_keeps_ticket_called` (+ evento `notification_failed`).
+10. `test_position_ignores_called_and_closed` **y empate**: dos altas con el mismo `sort_key` → posiciones distintas y estables.
+11. `test_service_date` — unitario, sin HTTP: sábado 00:30 Lima → viernes; el mismo instante en Santiago → sábado.
+12. Test integrado del camino feliz: unirse → aparece en la cola → llamar → el público ve `called`.
 
 Herramientas: `pytest` + `TestClient`, SQLite temporal por test, notificador fake inyectado con
 `dependency_overrides`, **reloj inyectable** (`now()` como dependencia).
@@ -279,7 +321,7 @@ No se testea: que la página renderiza, CRUD triviales, getters, snapshots, porc
 7. `notifier.py` — interfaz + `FakeNotifier` (log con **solo los últimos 3 dígitos** del teléfono).
 8. `routers/public.py` → `routers/host.py`.
 9. `seed.py` — 3 locales + un token por local, imprime los dos links por local.
-10. `tests/` — los seis de §7.1, en ese orden.
+10. `tests/` — los siete de §7.1, en ese orden.
 
 **Punto de control (≈ 1:50):** `pytest` en verde y `curl` de unirse → cola → llamar funcionando.
 Si no está, se cortan los opcionales del frontend antes de empezarlo.
@@ -290,7 +332,10 @@ Si no está, se cortan los opcionales del frontend antes de empezarlo.
 2. `JoinPage` `/q/:code` — incluido el `request_id` en `localStorage` **antes** del primer envío.
 3. `TicketPage` `/t/:token` — el más importante: es la pantalla que ve el comensal mientras espera.
 4. `HostPage` `/host` — token desde `?token=`, a `localStorage`, y se limpia de la URL.
-5. Solo entonces: opcionales de §2.2.
+5. «Ya estoy en la lista de espera» (O13): en `JoinPage`, un enlace que despliega un campo de teléfono y
+   redirige a `/t/:token` con lo que devuelva `/lookup`. Reutiliza el mismo input y el mismo mensaje de
+   error del alta; no es una ruta nueva.
+6. Solo entonces: opcionales de §2.2.
 
 ### 8.3 Cierre
 
@@ -312,19 +357,22 @@ para que la estimación del piloto parta de datos y no de intuición.
 ### 8.5 Si vas atrasado, corta en este orden
 
 1. Los cuatro opcionales de §2.2 (ya están fuera del "listo").
-2. Los tests 7–11 de §7.2 (nunca los seis de §7.1).
+2. Los tests 8–12 de §7.2 (nunca los siete de §7.1).
 3. `POST /remove` (endpoint incluido).
 4. `avg_wait_min` del encabezado de la tablet (deja `waiting_count`).
 5. El chunk aparte de `/host` (deja todo en un bundle).
 
-**Nunca se corta:** los seis tests, el README probado, el aislamiento entre locales y la nota.
+**Nunca se corta:** los siete tests, el README probado, el aislamiento entre locales y la nota.
 
 ### 8.6 Definición de listo
 
 - Clon limpio → README → back y front arriba en ≤ 5 min (anota el tiempo real).
 - Vista móvil: unirse con un teléfono PE válido → grupos delante y tiempo aproximado.
 - Recargar y volver a enviar el mismo formulario → el mismo turno, no uno nuevo.
-- Otro navegador, mismo teléfono → mensaje "ya tienes un turno activo", **sin** llevarte al turno ajeno.
+- Otro navegador, mismo teléfono → mensaje "ya tienes un turno activo", **sin** token en esa respuesta.
+- Ese mismo navegador → «Ya estoy en la lista de espera» con ese teléfono → vuelve a su turno.
+- «Ya estoy en la lista de espera» con un teléfono que no está en la cola, o con el de un turno ya
+  cerrado → mensaje de "no encontramos una espera activa", nunca un turno ajeno ni uno de ayer.
 - Tablet: aparece la fila → Llamar → el celular muestra "¡Tu mesa está lista!" y la hora límite.
 - Dos pestañas de tablet → Llamar en ambas → **un solo** "WhatsApp simulado" en el log.
 - Token de tablet inválido o de otro local → no se ve nada.
@@ -354,3 +402,8 @@ Nada más. Lo que falte va a la nota con su estimación.
    Antes del piloto, correr los tests contra MySQL.
 9. **El token de la tablet viaja en la URL del seed.** Cómodo en local, inaceptable en producción
    (Cloud Run registra la query string): en el piloto va por emparejamiento, no por link fijo.
+10. **`/lookup` sin OTP: el teléfono es la credencial.** Decisión consciente de la enmienda § 2.5, no un
+    descuido. Quien conozca un número y el código público del QR puede abrir y cancelar ese turno.
+    Antes del piloto: código de verificación por WhatsApp o SMS (~0,5 d sobre el canal real, que son
+    3 d y 1 d en 05 § 2) y, mientras tanto, límite por IP y por teléfono en ese endpoint — que hoy
+    tampoco existe (punto 3).

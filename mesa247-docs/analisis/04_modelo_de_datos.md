@@ -216,6 +216,10 @@ y calcula en Python; así el mismo código corre en SQLite y MySQL.
 - users / roles: no hay login personal.
 - reservations: fuera del piloto (solo walk-ins).
 - Historial de posiciones: se reconstruye con los eventos si hace falta.
+- zone / ambiente en `tickets`: no se escribe. Una sola cola por local en esta versión (07 § 3.1 P2);
+  si el diseñador pide zonas, es un campo aquí y la lista de zonas en `locations`, no tablas nuevas.
+- displayed_ahead: tampoco se escribe. El número visible nunca sube, pero hoy eso sale gratis porque
+  `groups_ahead` no puede crecer sin reordenar; la columna entra el día que entre reordenar (07 § 3.1 P1).
 
 ## 8. Índices que importan
 - tickets (location_id, service_date, status, sort_key) → **la cola**, la consulta más frecuente (cada
@@ -224,7 +228,9 @@ y calcula en Python; así el mismo código corre en SQLite y MySQL.
 - tickets (location_id, service_date, status) → reporte y cierre.
 - tickets public_token único → pantalla del comensal. En MySQL, con colación binaria: es una credencial
   opaca, y la colación por defecto compara sin distinguir mayúsculas.
-- tickets active_key único → un turno activo por teléfono, local y día de servicio.
+- tickets active_key único → un turno activo por teléfono, local y día de servicio, **y la consulta exacta
+  de «Ya estoy en la lista de espera»**: `/lookup` arma `"{location_id}:{service_date}:{phone_e164}"` y
+  busca por igualdad en este mismo índice. No hace falta índice ni columna nueva (09 § 2.5).
 - tickets (location_id, client_request_id) único → idempotencia del alta.
 - ticket_events (ticket_id, created_at) y (location_id, created_at).
 

@@ -57,6 +57,89 @@ P3. "¿Qué hacemos con quien no puede o no quiere escanear el QR, o no tiene Wh
 Alternativas fuertes si prefieres otra: la 6 (frecuente; pero en v1 se corta, así que se puede asumir) y la 7
 (El Libro; es más de producto e ingeniería que de diseño).
 
+## 3.1 Las tres preguntas finales (decisión del 18/09/2026)
+
+Las de § 3 salen del análisis del prototipo y se conservan como tal. **Las que van en la nota son estas
+tres**: salieron de mirar las cinco pantallas del prototipo en primera instancia —antes de congelar el
+alcance— y están más pegadas a lo que el corte de 4 horas construye de verdad. Cada una lleva la respuesta
+que se asume si el diseñador no contesta a tiempo. Donde esta sección y § 3 difieran, manda esta.
+
+### P1 · Cuando el anfitrión reordena la cola, ¿la posición que ve el comensal se actualiza al instante?
+
+> Si un comensal figura como #3 y el anfitrión mueve a otro grupo por encima de él, ¿debe pasar a ver #4
+> y recalcularse también su tiempo estimado?
+
+- **Por qué importa.** Ese número es lo único que esa persona tiene en la mano mientras espera. Si sube,
+  se lee como que alguien le pasó por delante: es la vía más corta a que se vaya o a que reclame en la
+  puerta. La decisión define si el número es una posición real o una promesa, y eso cambia qué se guarda
+  y qué se anima.
+- **Respuesta asumida: el número visible nunca sube.** Se muestra el menor entre el valor calculado y el
+  último valor ya mostrado. Cuando la cola avanza, el cálculo real alcanza al número mostrado y a partir
+  de ahí vuelve a bajar solo — esa es la "normalización", y no se anuncia. Solo se anima cuando baja. El
+  tiempo estimado sí se recalcula siempre: se muestra como aproximado ("≈ 28 min, depende de las mesas
+  que se liberen"), así que moverse no rompe ninguna promesa.
+- **En el corte de 4 horas esto no cuesta nada, porque el caso no se da.** Reordenar está fuera
+  (09 § 2.3) y `groups_ahead` cuenta solo los `waiting` con `(sort_key, id)` menor: llamar a alguien de
+  más abajo no sube el número de nadie, y los estados terminales solo restan. El número ya es monótono
+  no creciente por construcción. La regla hay que tenerla escrita **antes** de implementar reordenar o
+  la prioridad del frecuente, no después.
+- **Cuando llegue reordenar**, el último valor mostrado se guarda en el turno y en el servidor
+  (`displayed_ahead`), no en el navegador: el comensal recarga, cambia de navegador o vuelve desde el
+  WhatsApp, y el dato del navegador se pierde. Estimación: incluida en el 1–1,5 d de "arrastrar para
+  reordenar" de 05 § 2.
+- **Matiz de vocabulario.** En v1 la pantalla no dice "puesto 3", dice "3 grupos antes que ti"
+  (§ 4 punto 2 y el contrato de 09 § 5.1, campo `groups_ahead`). La regla es la misma; el número que no
+  sube es ese.
+
+### P2 · ¿La lista de espera debe contemplar zonas o ambientes (terraza, salón, barra)?
+
+- **Por qué importa.** Una cola por zona no es una pantalla más: son N colas. Cambia la posición, el
+  tiempo estimado, qué significa "un turno activo por teléfono", la vista del anfitrión y el reporte del
+  cierre. Es de las cosas que salen caras si se agregan después, porque obliga a migrar turnos ya
+  registrados y a redefinir métricas a mitad del piloto.
+- **Respuesta asumida: en esta versión no hay preferencia de zona.** Una sola lista de espera por local,
+  sin importar el ambiente ni el tipo de mesa. El único dato que entra en la decisión es el tamaño del
+  grupo, y quién se sienta dónde lo decide el anfitrión, no el sistema (la asignación de mesas está
+  fuera, 09 § 2.3).
+- **Si el diseñador dice que sí**, la forma barata es un campo `zone` en `tickets` y la lista de zonas en
+  `locations` — no tablas nuevas —, con posición y ETA calculadas por `(local, día, zona)` y la cola del
+  anfitrión filtrable. Se mantiene **un turno activo por teléfono, local y día**, no uno por zona: si no,
+  la misma persona se apunta en las tres colas y el reporte deja de significar nada. Estimación: 1–1,5 d,
+  más lo que toque del reporte.
+- **Riesgo declarado.** En un local con terraza, "sin zonas" significa que alguien puede rechazar la mesa
+  que le toca. En v1 eso lo resuelve el anfitrión hablando, y el turno queda como «Se fue» o «No vino».
+
+### P3 · Si el comensal cierra la página después de unirse, ¿debe poder recuperar su turno con el teléfono?
+
+- **Por qué importa.** El link con el token es lo único que tiene, y se pierde al cerrar la pestaña,
+  cambiar de navegador, entrar en incógnito o limpiar datos. Sin salida, esa persona vuelve a la puerta a
+  preguntar —justo lo que el producto promete evitar— o se une otra vez y recibe un error que no entiende.
+- **Respuesta asumida: sí.** La pantalla de alta incluye **«Ya estoy en la lista de espera»**: se ingresa
+  el teléfono y se devuelve la espera activa **de ese local y de ese día de servicio**, con su token, de
+  modo que el comensal cae en su página de turno con «Ya no voy» incluido. Si no hay espera activa, 404
+  con un texto claro; la respuesta nunca dice "ese teléfono no está en la lista", para no confirmar ni
+  negar nada sobre un número ajeno.
+- **Lo que esto cambia respecto del análisis previo.** 09 § 2.1 O3 y 08 § 4b decían lo contrario: no
+  revelar el token a quien solo conoce el teléfono, porque el QR de la puerta es público.
+  **Decisión del 18/09/2026: prevalece la recuperación**, recogida en la enmienda 09 § 2.5. El argumento:
+  adivinar un móvil completo y válido de alguien que además está en la cola de ese local hoy no es un
+  ataque realista, y el costo de no tener salida es seguro y diario. El riesgo se declara, no se disimula.
+- **La mejora conocida es OTP**: enviar un código al teléfono y devolver el token solo contra el código.
+  Es la versión segura de esto mismo, pero depende del canal real de WhatsApp o SMS, que está fuera del
+  corte (3 d y 1 d en 05 § 2), y añade en la puerta la fricción que se quiso quitar. Queda como deuda
+  declarada (09 § 9), no como algo que se pasó por alto.
+- **Lo que sí se hace gratis.** El teléfono se normaliza a E.164 con la región del local antes de buscar;
+  solo se consideran turnos `waiting` o `called` del `service_date` actual; y el 409 al unirse deja de ser
+  un callejón sin salida: su mensaje apunta a esta misma pantalla.
+
+### Impacto en el corte
+
+| | ¿Cambia el modelo? | ¿Cambia el contrato? | ¿Cambia el corte de 4 h? |
+|---|---|---|---|
+| P1 | No hoy; `displayed_ahead` solo cuando entre reordenar | No | No: el número ya no sube por construcción |
+| P2 | No; `zone` queda sin escribir | No | No |
+| P3 | No | **Sí**: `POST /api/public/locations/{code}/lookup` | **Sí**: un endpoint, una pantalla y un test (≈ 0,3 d) |
+
 ## 4. Qué le devolvería al diseñador
 Cambios que propongo (siempre con alternativa):
 1. Sin arrastrar para reordenar en el piloto → poder «Llamar» a cualquier fila (y "Subir al primero" si hace falta
@@ -79,6 +162,36 @@ Faltantes en el prototipo:
 - Formulario: rango de "¿Cuántos son?", prefijo según el país del local, ¿nombre o nombre + inicial?
 - Encabezado de la tablet: definir "espera media" (con los números del prototipo no puede ser la espera actual)
   y si "en cola" incluye a los llamados.
+
+## 4.1 Lo que le devuelvo, en orden de prioridad (decisión del 18/09/2026)
+
+§ 4 es el inventario completo de lo que le diría. **Esto es lo que va en la nota**: dos cosas, en este
+orden. El resto se menciona en una lista corta, no se desarrolla.
+
+**1. Cómo se muestra la posición cuando el anfitrión reordena la cola.** Es el cambio principal que le
+pediría revisar, y es el mismo asunto de § 3.1 P1: que el comensal no vea que "retrocedió" de puesto.
+El número visible nunca sube; cuando la cola avanza, el valor real lo alcanza y vuelve a bajar solo.
+Se anima solo hacia abajo. Alternativa si el diseñador quiere fidelidad por encima de todo: mostrar
+únicamente el tiempo aproximado y no el número — pero entonces se pierde la pantalla que él mismo dibujó.
+
+**2. WhatsApp entra después, no en la primera versión.** Primero se valida el flujo principal —registro,
+cola y llamado— porque es la parte que reemplaza el cuaderno; si eso no funciona, el WhatsApp solo hace
+más caro el fracaso. Lo que esto significa en concreto:
+
+- **En lo que se entrega y se enseña** va un notificador falso que registra el aviso y el evento
+  (09 § 2.1 O8). El flujo punta a punta se ve completo salvo el mensaje real.
+- **En el piloto de 3 semanas WhatsApp sí entra** (3 d, 05 § 2), una vez validado el flujo principal.
+  No se aplaza a "algún día": se aplaza dentro del plan, con su semana.
+- **Por qué no se puede aplazar para siempre**, y conviene decirlo en la misma frase: la página del turno
+  solo avisa si está abierta y a la vista; el polling se pausa con la pestaña oculta y no despierta un
+  teléfono bloqueado. WhatsApp no es un canal más, es el único que alcanza a quien se fue a caminar
+  (§ 3 P3). Mientras no esté, la regla operativa es "quédate cerca" + llamado por voz, y eso el local
+  tiene que saberlo antes de arrancar, no después.
+- La dependencia externa refuerza el orden: la plantilla la aprueba Meta y puede rechazarla. Empezar por
+  ahí es empezar por lo único que no controlamos.
+
+Lo demás de § 4 —hora límite en vez de "10 minutos", un solo mensaje por grupo, los faltantes del
+prototipo— va como lista corta, sin desarrollar.
 
 ## 5. Cómo se lo diría (principios)
 - Empezar por lo que sí sale y cuándo.
@@ -108,9 +221,16 @@ Faltantes en el prototipo:
     Me faltan en el prototipo: «No vino» y «Deshacer» en la tablet, el alta manual, la pantalla de "tu mesa está
     lista" en el celular y el aviso de uso del teléfono.
 
-    Y tres preguntas:
-    1. ¿Llaman por orden de llegada o por la mesa que se libera?
-    2. ¿Qué pasa al vencer los 10 minutos, y cómo cuenta quien dice «Ya no voy» después de ser llamado?
-    3. ¿Qué hacemos con quien no puede escanear el QR o no tiene WhatsApp?
+    Y tres preguntas, que me salieron mirando las pantallas:
+    1. Cuando reordenas la cola, ¿al comensal le sube el número? En la pantalla del celular dice "estás en el
+       puesto 7"; si en la tablet subes a otro grupo, a esa persona le toca ver el 8. ¿Lo mostramos, o el
+       número solo baja?
+    2. ¿La lista tiene que separar terraza, salón y barra, o es una sola cola por local? Lo pregunto ahora
+       porque una cola por ambiente no es una pantalla más: son varias colas, con su posición y su tiempo.
+    3. Si el comensal cierra la página, ¿lo dejamos volver a su turno poniendo su teléfono? Es lo único que
+       recuerda; el link se pierde al cerrar la pestaña.
+
+    Si no me contestas a tiempo asumo: el número nunca sube, una sola cola por local, y sí se puede volver
+    con el teléfono. Los tres supuestos están escritos y son fáciles de cambiar salvo el segundo.
 
     ¿Lo vemos 15 minutos mañana?

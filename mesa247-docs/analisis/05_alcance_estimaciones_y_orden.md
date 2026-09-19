@@ -20,6 +20,8 @@ Estimaciones en días ideales de una persona, para producción (no para el proto
 | Alta manual en la tablet | Sí | **Opcional 1** (solo si lo obligatorio está cerrado) | 0,5 d | — | sin esto el cuaderno sigue vivo |
 | P2 Mi turno (grupos delante, ETA, «Ya no voy») | Sí | Sí, con polling (la animación es **opcional 4**) | 1 d | — | menos preguntas al anfitrión; canal gratis |
 | Estado "te llamaron" en P2 | Sí | **Sí, obligatorio** | 0,1 d | — | es la mitad del flujo punta a punta |
+| «Ya estoy en la lista de espera»: recuperar el turno con el teléfono | Sí | **Sí, obligatorio** (O13, enmienda 09 § 2.5) | 0,1 d | — | el link se pierde al cerrar la pestaña; sin esto, esa persona vuelve a la puerta a preguntar |
+| OTP para esa recuperación | Deseable antes del piloto; si no cabe, límite por IP y por teléfono | No | 0,5 d sobre el canal real | WhatsApp o SMS reales | hoy el teléfono es la credencial, y se declara (09 § 2.5) |
 | «Voy en camino» | Sí | **Opcional 2** | 0,15 d | — | misma lógica que los botones del WhatsApp |
 | P4 Cola en la tablet (Llamar, Sentar, No vino, Se fue) | Sí | Sí | 1,5 d | — | núcleo operativo |
 | Concurrencia de dos anfitriones e idempotencia | Sí | Sí | incluido arriba | — | viernes real |
@@ -28,7 +30,8 @@ Estimaciones en días ideales de una persona, para producción (no para el proto
 | Emparejar tablets (token de dispositivo) | Sí | Token fijo en el seed | 0,5 d | — | sin login personal |
 | Deshacer llamado / Re-llamar | Sí | **No** | 0,5 d | — | errores de viernes; el mensaje ya salió, así que "deshacer" es parcial por definición |
 | P5 Reporte por correo al cierre | Sí (semana 3); la 1.ª semana, SQL manual | No (los datos sí se guardan) | 1,5–2 d | proveedor de correo, destinatarios, hora de cierre por local | los datos importan desde el día 1; el correo puede esperar |
-| Arrastrar para reordenar | No | No | 1–1,5 d bien hecho (concurrencia + vista del comensal) | definición de experiencia | "Llamar" en cualquier fila cubre al frecuente |
+| Arrastrar para reordenar | No | No | 1–1,5 d bien hecho (concurrencia + vista del comensal, incluido `displayed_ahead` para que el número no suba) | definición de experiencia | "Llamar" en cualquier fila cubre al frecuente |
+| Zonas o ambientes (terraza, salón, barra) | No | No | 1–1,5 d + lo que toque del reporte | que el diseñador lo confirme | son N colas, no una pantalla: cambian posición, ETA, deduplicación por teléfono y reporte (07 § 3.1 P2) |
 | "Cliente frecuente" | No | No | 2–4 d | datos o API de El Libro, consentimiento | origen del dato indefinido |
 | Infra de producción (Cloud Run, Cloud SQL, secretos, CI/CD, dominio) | Sí | No (se describe) | 2 d | accesos a GCP y DNS | — |
 | Observabilidad y alarmas | Sí | No (se describe; logs estructurados sí) | 1 d | canal de guardia | — |
@@ -72,12 +75,12 @@ lista de locales de El Libro. Si Meta rechaza la plantilla, el piloto arranca co
 | Bloque | Tiempo | Conversación | Qué haces | Sale |
 |---|---|---|---|---|
 | 0–1 | 0:00–0:30 | A · nota | huecos, 3 preguntas, supuestos, corte, estados y contrato | decisiones + esquema |
-| 2 | 0:30–1:50 | B · backend | proyecto, modelos, transiciones, endpoints, notificador falso, 6 tests, seed | pytest en verde |
+| 2 | 0:30–1:50 | B · backend | proyecto, modelos, transiciones, endpoints, notificador falso, 7 tests, seed | pytest en verde |
 | 3 | 1:50–3:05 | C · frontend | unirse, mi turno (polling), tablet (acciones) | flujo de punta a punta |
 | 4 | 3:05–3:20 | B y C | README y prueba desde un clon limpio | README probado |
 | 5 | 3:20–4:00 | A · nota | nota final (2 páginas), devolución al diseñador, producción | nota |
 
-Son 4:00 **sin margen**, y el bloque 2 es el que se desborda: son ~11 endpoints, 4 modelos y 6 tests en
+Son 4:00 **sin margen**, y el bloque 2 es el que se desborda: son ~12 endpoints, 4 modelos y 7 tests en
 80 minutos. Lo realista es 4:30–5:00 en total, y conviene anotar el tiempo real por bloque.
 El punto de control es a las 1:50 — si el backend no está con pytest en verde, se cortan los opcionales
 del frontend antes de empezarlo, no a las 3:00.
@@ -93,7 +96,7 @@ Por qué este orden
 Si vas atrasado, el orden de corte está en `09_alcance_y_plan_de_implementacion.md` § 8.5. En resumen: primero los cuatro
 opcionales (que ya están fuera de la definición de listo), después los tests de segunda prioridad, después
 `/remove`, después la espera media del encabezado.
-Nunca cortes: los seis tests no negociables, el README probado, el aislamiento entre locales y la nota.
+Nunca cortes: los siete tests no negociables, el README probado, el aislamiento entre locales y la nota.
 
 ## 5. Cuándo parar (definición de «listo» del corte)
 La lista completa está en `09_alcance_y_plan_de_implementacion.md` § 8.6. Lo esencial:
@@ -105,5 +108,5 @@ La lista completa está en `09_alcance_y_plan_de_implementacion.md` § 8.6. Lo e
 - Reintentar el mismo formulario devuelve el mismo turno; el mismo teléfono desde otro navegador **no**
   entrega el turno ajeno.
 - Dos pestañas de tablet, Llamar en ambas → un solo aviso en el log.
-- pytest en verde con los seis tests no negociables.
+- pytest en verde con los siete tests no negociables.
 - Nada más. Lo que falte va a la nota con su estimación.
