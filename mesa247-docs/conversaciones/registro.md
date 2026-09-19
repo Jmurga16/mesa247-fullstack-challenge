@@ -366,3 +366,31 @@ SQLite y los mismos 60 en MySQL, y `npm run build`.
 **Archivos:** `hooks/usePolling.ts`, `lib/format.ts`, `lib/storage.ts`, `pages/JoinPage.tsx`,
 `pages/ReportPage.tsx` y `pages/TicketPage.tsx`; informe funcional reescrito con causa y corrección de
 cada fallo, y READMEs de web y de `tests/` al día.
+
+## 2026-09-19 — Auditoría del código implementado
+
+**Parte del proyecto:** backend y frontend.
+
+**Solicitud:** «Pasamos una auditoría al código y funcionalidad, si es posible limpiar código,
+comentarios innecesarios y si se detecta deuda técnica».
+
+**Decisión y resultado:** leer entero el código de producto y contrastarlo con el contrato, con las
+reglas de 09 § 2.7 y consigo mismo. Las rutas coinciden una a una con el contrato implementado y no
+apareció ningún fallo funcional nuevo. Sí un defecto de interfaz: `usePolling` no borraba el aviso de
+desconexión al cambiar de turno, local o día, así que sobrevivía hasta la siguiente respuesta buena.
+Limpieza aplicada: la opción `onStatus` de `api.ts`, que nadie pasaba; la salida del seed, que seguía
+diciendo «frontend pendiente»; cuatro comentarios en inglés traducidos, por ser los únicos del código
+de producto; y en `main.py`, un `logger` de módulo y la traza completa del fallo inesperado, que antes
+solo registraba el nombre de la excepción. Se extrajeron dos componentes, `NoHostSession` y
+`ErrorBanner`, con el JSX duplicado entre la cola y el reporte.
+
+Se decidió **no** tocar los comentarios largos: explican decisiones, no mecánica, y son parte del
+entregable; solo se retiró lo que había dejado de ser cierto. Tampoco se quitó `on_the_way`, que
+obligaría a cambiar contrato y tabla dos veces para devolverlo con el opcional 2. Deuda nueva anotada
+en 09 § 9: ese `on_the_way` inalcanzable, la consulta por fila de `host_row` y la falta de linter.
+Verificación sin relajar pruebas: 60 tests de backend, `npm run build` y 17 de 17 en navegador.
+
+**Archivos:** `app/auth.py`, `app/main.py`, `app/domain/queue.py`, `seed.py`; `lib/api.ts`,
+`hooks/usePolling.ts`, `components/NoHostSession.tsx`, `components/ErrorBanner.tsx`,
+`pages/HostPage.tsx`, `pages/ReportPage.tsx`, `pages/TicketPage.tsx`; informe
+`auditoria/05_auditoria_de_codigo.md`, deuda en 09 § 9 e índices de `auditoria/` y `mesa247-docs/`.
