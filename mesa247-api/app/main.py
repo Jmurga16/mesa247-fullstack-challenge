@@ -11,7 +11,7 @@ from app.config import Settings, settings
 from app.db import build_engine
 from app.errors import ApiError
 from app.models import Base
-from app.routers import host, public
+from app.routers import demo, host, public
 from app.schemas import ErrorResponse
 
 def create_app(config: Settings | None = None, engine=None) -> FastAPI:
@@ -22,6 +22,7 @@ def create_app(config: Settings | None = None, engine=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application):
+        application.state.config = config
         application.state.engine = engine if engine is not None else build_engine(config)
         if config.create_tables:
             Base.metadata.create_all(application.state.engine)
@@ -76,6 +77,7 @@ def create_app(config: Settings | None = None, engine=None) -> FastAPI:
 
     application.include_router(public.router)
     application.include_router(host.router)
+    application.include_router(demo.router)
     return application
 
 
