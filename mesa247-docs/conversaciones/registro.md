@@ -258,3 +258,68 @@ no como detalle de implementación.
    producto, no de redacción — el QR está fijo en la puerta y esa frase manda de vuelta al local justo
    a quien el producto promete no hacer volver (07 § 3.1 P3). El atajo pasa a ofrecer las dos puertas
    que abre ese QR, «Unirme a la lista» y «Ya estoy en la lista», y el texto ya no manda a la puerta.
+6. Dos fallos encontrados por el autor probando el alta en el navegador, ambos del frontend:
+   - Solo se registraba la primera persona. El `request_id` de idempotencia se guardaba en
+     `localStorage` por local, así que el segundo alta desde la misma pantalla reenviaba la llave del
+     primero; el servidor respondía 200 con el turno ya creado —lo correcto para un reintento— y la
+     pantalla llevaba al turno ajeno. La llave identifica un envío, no un dispositivo: pasa a memoria,
+     atada a nombre, teléfono y tamaño del grupo, y se descarta al terminar el alta. Sobrevive al
+     reintento por mala señal, que es lo único que tenía que sobrevivir.
+   - El formulario mostraba `+51` como etiqueta fija y solo dejaba escribir la parte nacional: un
+     número extranjero no tenía forma de entrar. El código de país pasa a ser parte del campo, con el
+     prefijo del local como valor inicial y editable. El backend no cambia: `normalize_phone` ya
+     resolvía cualquier E.164 por encima de la región del local, comprobado con números de ES, US y CL.
+7. El campo comprueba en local que haya entre 8 y 15 dígitos antes de enviar, para no gastar una
+   petición en un número a medio escribir. La validez real la sigue decidiendo el servidor.
+8. Abrir la tablet exigía copiar un token de la consola. Para una demo eso es una barrera y además un
+   mal reparto de credenciales: no se le deja un token a quien prueba la aplicación esperando que
+   sepa qué hacer con él. `/admin` pasa a listar los locales y abrir la tablet de cualquiera con un
+   clic; elegir otro local cambia de tablet, que es lo que faltaba para enseñar dos colas desde un
+   mismo equipo. Detrás está `POST /api/demo/locations/{code}/tablet`, que emite la sesión y revoca la
+   anterior de ese local sin tocar la que imprime el seed. Es una fábrica de credenciales sin
+   autenticación, así que vive detrás de `DEMO_MODE`: encendido por defecto para que un clon limpio
+   funcione sin configurar nada (O11), apagado en cualquier despliegue real, donde las rutas responden
+   404 y la tablet vuelve a abrirse solo con su enlace. Queda en la enmienda 09 § 2.7 como andamiaje,
+   no como el panel de administración ni el emparejamiento de producción, que siguen fuera (§ 2.3).
+9. El selector de `/` mostraba un local como «no disponible» y se leyó como un estado del negocio
+   —«ese local no ha abierto»— cuando solo significaba que el código no estaba en la base. La lista
+   pasa a salir de `GET /api/demo/locations`, con los locales activos que existen de verdad: sin
+   códigos fijos en el frontend y sin entradas muertas que interpretar.
+
+## 2026-09-19 — Reporte del día: de fuera del corte a implementado
+
+**Parte del proyecto:** backend y frontend.
+
+**Prompt o solicitud**
+
+El autor señala, sobre el mockup del punto 5 del enunciado, que faltó implementar el reporte del día o
+al menos un botón para llegar a él.
+
+**Decisión**
+
+Implementarlo completo. Estaba en § 2.3 («fuera, ni una línea») como exclusión defendida, pero sus
+definiciones ya estaban escritas en 04 § 6 con su SQL de referencia y su nota de portabilidad: lo que
+faltaba era conectarlas, no decidirlas. El correo del cierre **sigue fuera**, porque depende del cierre
+del día automático, que no existe (§ 9 punto 1). La enmienda queda en 09 § 2.8.
+
+Tres decisiones dentro de la pantalla, las tres tomadas de los límites que 04 § 6 pedía declarar antes
+de que los pregunten: los conteos son de **grupos** y se publica aparte el total de personas
+(`joined_guests`, `seated_guests`); mientras haya turnos sin resolver el día **no ha cerrado**, así que
+`pending` se publica y la pantalla avisa de que la suma todavía no cuadra; y el cierre administrativo
+(`expired`) va en su propio campo, separado del desenlace que marcó una persona. La agregación se
+calcula en Python sobre los turnos del día y no en SQL: `TIMESTAMPDIFF` no existe en SQLite.
+
+**Resultado**
+
+`GET /api/host/report?date=` en `app/routers/host.py`, con `day_report` en `app/domain/queue.py` y el
+esquema `HostReport`; `avg_wait_min` pasa a compartir el cálculo del promedio con el reporte. Pantalla
+`/host/reporte` con selector de día, más el botón «Reporte del día» en la cola; va en su propio chunk,
+como el resto de la operación. Cuatro tests nuevos en `tests/test_report.py`, incluido el invariante
+contable que 04 § 6 pedía: 60 tests en verde en SQLite. Documentación actualizada: 09 § 2.3, § 2.8,
+§ 5.2, § 5.3 y § 9 punto 12; 03 § 3 (la ruta dejaba de ser «fase 2»); contrato de API y `openapi.json`
+regenerado; READMEs de API y web.
+
+**Correcciones o rechazos**
+
+Antes de escribir código se advirtió que el reporte era una exclusión deliberada del corte y se ofreció
+dejarlo fuera reforzando dónde se explica. El autor eligió implementarlo completo.
