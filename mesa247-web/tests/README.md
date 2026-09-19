@@ -25,10 +25,15 @@ continúa con los demás escenarios. El JSON de resultados, los logs y las captu
 `.artifacts/functional/`, excluido de Git. Los datos son sintéticos; los logs pueden contener tokens
 de esos turnos temporales. Una nueva ejecución sobrescribe resultados y capturas del mismo nombre.
 
-Los 17 escenarios cubren alta, polling entre dispositivos, llamado y asiento, parada del polling
+Los 19 escenarios cubren alta, polling entre dispositivos, llamado y asiento, parada del polling
 terminal, altas distintas desde un navegador, duplicados y recuperación, validación y tamaño del grupo,
 teléfonos de Chile y extranjeros, cancelación, nuevo registro, acciones del anfitrión, reporte y fecha,
-aislamiento, tokens inválidos, reintentos, revocación de sesión, cuenta regresiva y fallos de red.
+aislamiento, tokens inválidos, reintentos, revocación de sesión, cuenta regresiva, fallos de red y el
+conmutador de la demo.
+
+El caso 18 **teclea** el teléfono en vez de usar `fill()`. No es un capricho: `fill()` escribe el valor
+de una vez y nunca ejerce el saneado del campo, que es donde se escondía el error del prefijo
+duplicado del 19/09.
 
 El negocio usa respuestas reales de la API. Para reproducir fallos se descarta una respuesta de alta
 ya confirmada por el servidor, se corta la red del navegador o se detiene el proceso de la API durante
